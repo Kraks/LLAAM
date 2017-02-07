@@ -19,12 +19,13 @@ using namespace llvm;
 namespace AAM {
   typedef std::string var;
 
-  struct Location {
+  class Location {
+  public:
     unsigned long long myId;
     Location() {
       myId = id++;
     };
-    friend bool operator < (const struct Location &a, const struct Location &b) {
+    friend bool operator < (const Location &a, const Location &b) {
       return a.myId < b.myId;
     }
   private:
@@ -33,30 +34,41 @@ namespace AAM {
 
   unsigned long long Location::id = 0;
 
-  struct HeapAddr : public Location {};
-  struct StackPtr : public Location {};
+  class HeapAddr : public Location {};
+  class StackPtr : public Location {};
   typedef StackPtr FramePtr;
-  struct BindAddr : public Location {};
+  class BindAddr : public Location {};
 
-  struct LocalBindAddr : public BindAddr {
+  class LocalBindAddr : public BindAddr {
     var name;
     FramePtr fp;
+  public:
     LocalBindAddr(var name, FramePtr fp) : name(name), fp(fp) {};
   };
 
-  struct AbstractValue {
+  class AbstractValue {
     unsigned long long myId;
+  public:
+    inline bool operator==(const AbstractValue& that) {
+      return false;
+    }
   };
-  struct Cont : public AbstractValue {};
-  struct LocationValue : public AbstractValue {
+  class Cont : public AbstractValue {};
+  class LocationValue : public AbstractValue {
     Location loc;
+  public:
     LocationValue(Location loc) : loc(loc) {};
   };
-  struct FuncValue : public AbstractValue {
+  class FuncValue : public AbstractValue {
     Function& fun;
+  public:
     FuncValue(Function& fun) : fun(fun) {};
+    inline bool operator==(const FuncValue& that) {
+      return &this->fun == &that.fun;
+    }
   };
-  struct PrimValue : public AbstractValue {
+  class PrimValue : public AbstractValue {
+  public:
     static PrimValue& getInstance() {
       static PrimValue instance;
       return instance;
@@ -64,17 +76,17 @@ namespace AAM {
     PrimValue(PrimValue const&) = delete;
     void operator=(PrimValue const&) = delete;
 
-    private:
+  private:
     PrimValue() {}
   };
 
   enum AbstractNat { Zero, One, Inf };
 
-  struct Store {};
-  struct Succ {};
-  struct Pred {};
-  struct Measure {};
-  struct Conf {};
+  class Store {};
+  class Succ {};
+  class Pred {};
+  class Measure {};
+  class Conf {};
 
   struct State {};
 }
@@ -82,8 +94,9 @@ namespace AAM {
 namespace ConcreteAAM {
   using namespace AAM;
 
-  struct ConcreteHeapAddr : public HeapAddr {
+  class ConcreteHeapAddr : public HeapAddr {
     unsigned long long myId;
+  public:
     ConcreteHeapAddr() {
       myId = id++;
     }
@@ -91,19 +104,21 @@ namespace ConcreteAAM {
     static unsigned long long id;
   };
 
-  struct ConcreteStackAddr : public Location {
+  class ConcreteStackPtr : public Location {
     unsigned long long myId;
-    ConcreteStackAddr() {
+  public:
+    ConcreteStackPtr() {
       myId = id++;
     }
   private:
     static unsigned long long id;
   };
 
-  typedef ConcreteStackAddr ConcreteFramePtr;
+  typedef ConcreteStackPtr ConcreteFramePtr;
 
   struct ConcreteStore : public Store {
     std::map<Location, AbstractValue> m;
+  public:
     ConcreteStore() {};
     ConcreteStore(std::map<Location, AbstractValue> m) : m(m) {};
 
@@ -130,23 +145,23 @@ namespace ConcreteAAM {
   //////////////////////////////////////////
 
   unsigned long long ConcreteHeapAddr::id = 0;
-  unsigned long long ConcreteStackAddr::id = 0;
+  unsigned long long ConcreteStackPtr::id = 0;
 }
 
 namespace AbstractAAM {
   using namespace AAM;
 
-  struct ZeroCFAHeapAddr : public HeapAddr {
+  class ZeroCFAHeapAddr : public HeapAddr {
     //TODO
   };
 
-  struct ZeroCFAStackPtr : public StackPtr {
+  class ZeroCFAStackPtr : public StackPtr {
     //TODO
   };
 
   typedef ZeroCFAStackPtr ZeroCFAFramePtr;
 
-  struct AbstractStore : public Store {
+  class AbstractStore : public Store {
     std::set<AbstractValue> s;
 
   };

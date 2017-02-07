@@ -17,7 +17,9 @@ void printModuleInfo(Module& M) {
 void printInst(Function& F) {
   int idx = 0;
   errs() << "function: " << F.getName() << "\n";
-  for (inst_iterator i = inst_begin(F), e = inst_end(F); i != e; i++, idx++) {
+  for (inst_iterator i = inst_begin(F), e = inst_end(F);
+       i != e;
+       i++, idx++) {
     Instruction* inst = static_cast<Instruction*>(&*i);
     errs() << "  inst " << idx << ": ";
     inst->print(errs(), false);

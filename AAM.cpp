@@ -13,6 +13,8 @@
 #include "Utils.h"
 
 using namespace llvm;
+using namespace AAM;
+using namespace ConcreteAAM;
 
 namespace {
   struct AAMPass : public ModulePass {
@@ -22,6 +24,17 @@ namespace {
     bool runOnModule(Module& M) override {
       Function* mainFunc = M.getFunction("main");
       printInst(*mainFunc);
+
+      FuncValue f1(*mainFunc);
+      FuncValue f2(*mainFunc);
+      errs() << "eq?:" << (f1 == f2) << "\n";
+      ConcreteStackPtr sp1;
+      ConcreteStackPtr sp2;
+      ConcreteStore store({{sp1, f1}, {sp2, f2}});
+
+      FuncValue* f11 = static_cast<FuncValue*>(store.lookup(sp1));
+      FuncValue* f22 = static_cast<FuncValue*>(store.lookup(sp2));
+
       return false;
     }
 
