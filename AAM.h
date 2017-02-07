@@ -53,8 +53,8 @@ namespace AAM {
     LocationValue(Location loc) : loc(loc) {};
   };
   struct FuncValue : public AbstractValue {
-    Function* fun;
-    FuncValue(Function* fun) : fun(fun) {};
+    Function& fun;
+    FuncValue(Function& fun) : fun(fun) {};
   };
   struct PrimValue : public AbstractValue {
     static PrimValue& getInstance() {
@@ -75,6 +75,8 @@ namespace AAM {
   struct Pred {};
   struct Measure {};
   struct Conf {};
+
+  struct State {};
 }
 
 namespace ConcreteAAM {
