@@ -38,6 +38,19 @@ namespace AAM {
       KBindAddr,
         KLocalBindAddr
     };
+  
+    static std::string KingToString(LocationKind v) {
+      switch (v) {
+        case KHeapAddr: return "HeapAddr";
+        case KConcreteHeapAddr: return "ConcreteHeapAddr";
+        case KZeroCFAHeapAddr: return "0CFAHeapAddr";
+        case KStackPtr: return "StackPtr";
+        case KConcreteStackPtr: return "ConcreteStackPtr";
+        case KZeroCFAStackPtr: return "0CFAStackPtr";
+        case KBindAddr: return "BindAddr";
+        case KLocalBindAddr: return "LocalBindAddr";
+      }
+    }
     
     Location() {
       myId = id++;
@@ -62,7 +75,6 @@ namespace AAM {
     static unsigned long long id;
   };
 
-  unsigned long long Location::id = 0;
 
   class HeapAddr : public Location {
   public:
@@ -101,6 +113,7 @@ namespace AAM {
     var name;
     FramePtr fp;
   };
+  
 
   /* AbstractValue = Cont
    *               | LocationValue
@@ -111,7 +124,7 @@ namespace AAM {
   public:
     enum ValKind { KContV, KLocationV, KFuncV, KPrimV };
     
-    static std::string valTypeToString(ValKind v) {
+    static std::string KindToString(ValKind v) {
       switch (v) {
         case KContV: return "ContV";
         case KLocationV: return "LocationV";
@@ -138,6 +151,7 @@ namespace AAM {
   };
 
   class Cont : public AbstractValue {
+    //TODO
     Cont() : AbstractValue(KContV) {}
     
     static bool classof(const AbstractValue* v) {
@@ -201,6 +215,10 @@ namespace AAM {
   class Conf {};
 
   struct State {};
+  
+  /******** Static initialization ********/
+  
+  unsigned long long Location::id = 0;
 }
 
 namespace ConcreteAAM {

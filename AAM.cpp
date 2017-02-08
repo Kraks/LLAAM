@@ -49,7 +49,7 @@ namespace {
       //errs() << "functions(get from store) eq: " << (*f11 == *f22) << "\n"; // true
       
       AbstractValue* someV = store.lookup(sp2);
-      errs() << AbstractValue::valTypeToString(someV->getKind()) << "\n";
+      errs() << AbstractValue::KindToString(someV->getKind()) << "\n";
       
       PrimValue* fakepv = static_cast<PrimValue*>(store.lookup(sp2));
       assert(!(fakepv == nullptr));
