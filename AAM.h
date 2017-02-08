@@ -96,6 +96,13 @@ namespace AAM {
     }
   };
   
+  struct LocationLess {
+    bool operator()(const std::shared_ptr<Location>& a, const std::shared_ptr<Location>& b) const {
+      //errs() << "a hash: " << a->hashValue() << " b hash: " << b->hashValue() << "\n";
+      return a->hashValue() < b->hashValue();
+    }
+  };
+  
   struct LocationEqual {
     bool operator()(const std::shared_ptr<Location>& a, const std::shared_ptr<Location>& b) const {
       return *a.get() == *b.get();
@@ -181,8 +188,8 @@ namespace AAM {
   
     virtual size_t hashValue() const override {
       size_t seed = 0;
-      hash_combine(seed, hash_value(name));
-      hash_combine(seed, fp.get()->hashValue());
+      seed = hash_combine(seed, hash_value(name));
+      seed = hash_combine(seed, fp->hashValue());
       return seed;
     }
     
@@ -220,17 +227,20 @@ namespace AAM {
       return kind;
     }
     
-    inline bool operator==(const AbstractValue& that) {
-      return false;
+    friend bool operator==(const AbstractValue& a, const AbstractValue& b) {
+      return a.equalTo(b);
     }
     
   private:
     ValKind kind;
-    unsigned long long myId;
     AbstractValue() {}
     
   protected:
     AbstractValue(ValKind kind): kind(kind) {}
+    virtual bool equalTo(const AbstractValue& that) const {
+      assert(false && "should not call AbstractValue::equalTo");
+      return false;
+    }
   };
 
   class Cont : public AbstractValue {
@@ -241,14 +251,29 @@ namespace AAM {
     static bool classof(const AbstractValue* v) {
       return v->getKind() == KContV;
     }
+
+  protected:
+    virtual bool equalTo(const AbstractValue& that) const override {
+      assert(false && "should not call Cont::equalTo");
+      return false;
+    }
   };
 
   class LocationValue : public AbstractValue {
     Location loc;
   public:
     LocationValue(Location loc) : AbstractValue(KLocationV), loc(loc) {}
+    
     static bool classof(const AbstractValue* v) {
       return v->getKind() == KLocationV;
+    }
+
+  protected:
+    virtual bool equalTo(const AbstractValue& that) const override {
+      if (!isa<LocationValue>(&that))
+        return false;
+      auto* newThat = dyn_cast<LocationValue>(&that);
+      return this->loc == newThat->loc;
     }
   };
 
@@ -256,6 +281,7 @@ namespace AAM {
     Function* fun;
   public:
     FuncValue(Function* fun) : AbstractValue(KFuncV), fun(fun) {}
+    
     FuncValue(const FuncValue& funcValue) : AbstractValue(KFuncV), fun(funcValue.fun) {}
     
     FuncValue& operator=(FuncValue that) {
@@ -271,23 +297,30 @@ namespace AAM {
       return fun;
     }
   
-    inline bool operator==(const FuncValue& that) {
-      return this->fun == that.fun;
-    }
-  
     static bool classof(const AbstractValue* v) {
       return v->getKind() == KFuncV;
+    }
+
+  protected:
+    virtual bool equalTo(const AbstractValue& that) const override {
+      if (!isa<FuncValue>(&that))
+        return false;
+      auto* newThat = dyn_cast<FuncValue>(&that);
+      return this->fun == newThat->fun;
     }
   };
 
   class PrimValue : public AbstractValue {
   public:
     PrimValue() : AbstractValue(KPrimV) {}
-    inline bool operator==(const PrimValue& that) {
-      return true;
-    }
+    
     static bool classof(const AbstractValue* v) {
       return v->getKind() == KPrimV;
+    }
+
+  protected:
+    virtual bool equalTo(const AbstractValue& that) const override {
+      return isa<PrimValue>(&that);
     }
   };
 
@@ -327,6 +360,13 @@ namespace ConcreteAAM {
       return newThat->myId == this->myId;
     }
     
+    virtual size_t hashValue() const override {
+      size_t seed = 0;
+      seed = hash_combine(seed, hash_value(myId));
+      seed = hash_combine(seed, hash_value("ConcreteHeapAddr"));
+      return seed;
+    }
+    
   private:
     unsigned long long myId;
     static unsigned long long id;
@@ -349,6 +389,13 @@ namespace ConcreteAAM {
       return newThat->myId == this->myId;
     }
     
+    virtual size_t hashValue() const override {
+      size_t seed = 0;
+      seed = hash_combine(seed, hash_value(myId));
+      seed =hash_combine(seed, hash_value("ConcreteStackAddr"));
+      return seed;
+    }
+    
   private:
     unsigned long long myId;
     static unsigned long long id;
@@ -357,9 +404,9 @@ namespace ConcreteAAM {
   typedef ConcreteStackPtr ConcreteFramePtr;
 
   struct ConcreteStore : public Store {
-    typedef std::unordered_map<std::shared_ptr<Location>,
-                               std::shared_ptr<AbstractValue>,
-                               LocationHasher, LocationEqual> StoreMap;
+    typedef std::map<std::shared_ptr<Location>,
+                     std::shared_ptr<AbstractValue>,
+                     LocationLess> StoreMap;
     StoreMap m;
   public:
     ConcreteStore() {};
@@ -382,11 +429,13 @@ namespace ConcreteAAM {
       return newStore;
     }
     
-    /*
     inline bool operator==(ConcreteStore& that) {
-      return (this->m == that.m);
+      auto pred = [] (decltype(*m.begin()) a, decltype(*m.begin()) b) {
+        return *a.first == *b.first && *a.second == *b.second;
+      };
+      return this->m.size() == that.m.size() &&
+             std::equal(this->m.begin(), this->m.end(), that.m.begin(), pred);
     }
-     */
   };
 
   /******** Static initialization ********/

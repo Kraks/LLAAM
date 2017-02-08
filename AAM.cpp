@@ -23,7 +23,8 @@ namespace {
     
     static void testStore(Module& M) {
       Function* mainFunc = M.getFunction("main");
-      printInst(*mainFunc);
+      Function* add = M.getFunction("add");
+      Function* sub = M.getFunction("sub");
   
       std::shared_ptr<FuncValue> f1 = std::make_shared<FuncValue>(mainFunc);
       std::shared_ptr<FuncValue> f2 = std::make_shared<FuncValue>(mainFunc);
@@ -68,6 +69,13 @@ namespace {
   
       //errs() << "stack ptrs eq: " << (sp1 == sp2) << "\n"; // false
       ConcreteStore store({{sp1, f1}, {sp2, f2}, {hp1, pv}, {hp2, pv}});
+      assert(store == store);
+      assert(store.size() == 4);
+      ConcreteStore store2({{sp1, f1}});
+      assert(store2.size() == 1);
+      ConcreteStore store3({{sp1, f2}});
+      assert(store3.size() == 1);
+      assert(store2 == store3);
   
       AbstractValue* v1 = store.lookup(sp1);
       AbstractValue* v2 = store.lookup(sp2);
@@ -94,9 +102,10 @@ namespace {
       //errs() << "PrimVal eq: " << (*pv1 == *pv2) << "\n";
       
       for (int i = 0; i <= 2000; i++) {
-        ConcreteStore store2 = store.update(sp1, pv);
-        someV = store2.lookup(sp1);
-        assert(store2.size() == 4);
+        ConcreteStore store4 = store.update(sp1, pv);
+        errs() << "size: " << store4.size() << "\n";
+        someV = store4.lookup(sp1);
+        assert(store4.size() == 4);
         //errs() << "classof: " << AbstractValue::KindToString(someV->getKind()) << "\n";
         assert(isa<PrimValue>(someV));
         
