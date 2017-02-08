@@ -9,6 +9,7 @@
 
 #include <set>
 #include <map>
+#include <unordered_map>
 #include <vector>
 #include <algorithm>
 #include <memory>
@@ -59,76 +60,87 @@ namespace AAM {
         case KZeroCFAStackPtr: return "0CFAStackPtr";
         case KBindAddr: return "BindAddr";
         case KLocalBindAddr: return "LocalBindAddr";
+        default: return "Unknown";
       }
     }
     
-    Location() {
-      myId = id++;
-    };
-    
     LocationKind getKind() const {
       return kind;
-    }
-    
-    /* Used for when as Key type of map */
-    friend bool operator<(const Location& a, const Location& b) {
-      return a.myId < b.myId;
     }
       
     friend bool operator==(const Location& a, const Location& b) {
       return a.equalTo(b);
     }
-
+  
+    virtual size_t hashValue() const {
+      return hash_value("Location");
+    }
+    
   protected:
     Location(LocationKind kind) : kind(kind) {}
+    
     virtual bool equalTo(const Location& that) const {
-      errs() << "LOC EQ\n";
+      assert(false && "should not call Location::equalTo");
       return false;
     }
     
   private:
     LocationKind kind;
-    unsigned long long myId;
-    static unsigned long long id;
+    Location() {};
+  };
+  
+  struct LocationHasher {
+    std::size_t operator()(const std::shared_ptr<Location>& loc) const {
+      Location* lp = loc.get();
+      return lp->hashValue();
+    }
+  };
+  
+  struct LocationEqual {
+    bool operator()(const std::shared_ptr<Location>& a, const std::shared_ptr<Location>& b) const {
+      return *a.get() == *b.get();
+    }
   };
 
   class HeapAddr : public Location {
   public:
-    //inline bool operator==(HeapAddr& that) { return false; }
-    virtual bool equalTo(const Location& that) const {
-      return false;
-    }
-  
     static bool classof(const Location* loc) {
       LocationKind k = loc->getKind();
       return k >= KHeapAddr && k <=KHeapAddrEnd;
     }
+  
+    virtual size_t hashValue() const override {
+      return hash_value("HeapAddr");
+    }
+    
   protected:
     HeapAddr(LocationKind kind) : Location(kind) {}
+    
+    virtual bool equalTo(const Location& that) const override {
+      //errs() << "should not call HeapAddr::equalTo\n";
+      assert(false && "should not call HeapAddr::equalTo");
+      return false;
+    }
   };
 
   class StackPtr : public Location {
   public:
-    /*
-    friend bool operator==(const StackPtr& a, const StackPtr& b) {
-      return a.equalTo(b);
-    }
-    
-    virtual bool equalTo(const Location& that) const {
-      if (!isa<StackPtr>(&that)) return false;
-      
-      errs() << "to stack ptr equal to\n";
-      auto* newThat = dyn_cast<StackPtr>(&that);
-      return newThat->equalTo(*this);
-    }
-    */
-    
     static bool classof(const Location* loc) {
       LocationKind k = loc->getKind();
       return k >= KStackPtr && k <= KStackPtrEnd;
     }
-
+    
+    virtual size_t hashValue() const override {
+      return hash_value("StackPtr");
+    }
+    
   protected:
+    virtual bool equalTo(const Location& that) const override {
+      //errs() << "should not call StackPtr::equalTo\n";
+      assert(false && "should not call StackPtr::equalTo");
+      return false;
+    }
+  
     StackPtr(LocationKind kind) : Location(kind) {}
   };
 
@@ -136,40 +148,52 @@ namespace AAM {
 
   class BindAddr : public Location {
   public:
-    virtual bool equalTo(const Location& that) const {
-      return false;
-    }
-    
     static bool classof(const Location* loc) {
       LocationKind k = loc->getKind();
       return k >= KBindAddr && k <= KBindAddrEnd;
     }
+  
+    virtual size_t hashValue() const override {
+      return hash_value("BindAddr");
+    }
 
   protected:
     BindAddr(LocationKind kind) : Location(kind) {}
+    
+    virtual bool equalTo(const Location& that) const override {
+      errs() << "should not call BindAddr::equalTo\n";
+      //assert(false && "should not call BindAddr::equalTo");
+      return false;
+    }
   };
 
   class LocalBindAddr : public BindAddr {
+  private:
+    var name;
+    std::shared_ptr<FramePtr> fp;
+    
   public:
-    LocalBindAddr(var name, FramePtr fp) : BindAddr(KLocalBindAddr), name(name), fp(fp) {};
-    
-    virtual bool equalTo(const Location& that) const {
-      if (!isa<LocalBindAddr>(&that))
-        return false;
-      auto* newThat = dyn_cast<LocalBindAddr>(&that);
-      errs() << "b1: " << (newThat->name == this->name);
-      errs() << "b2: " << (newThat->fp == this->fp);
-      return newThat->name == this->name &&
-             newThat->fp == this->fp;
-    }
-    
+    LocalBindAddr(var name, std::shared_ptr<FramePtr> fp) : BindAddr(KLocalBindAddr), name(name), fp(fp) {};
+  
     static bool classof(const Location* loc) {
       return loc->getKind() == KLocalBindAddr;
     }
+  
+    virtual size_t hashValue() const override {
+      size_t seed = 0;
+      hash_combine(seed, hash_value(name));
+      hash_combine(seed, fp.get()->hashValue());
+      return seed;
+    }
     
-  private:
-    var name;
-    FramePtr fp;
+  protected:
+    virtual bool equalTo(const Location& that) const override {
+      if (!isa<LocalBindAddr>(&that))
+        return false;
+      auto* newThat = dyn_cast<LocalBindAddr>(&that);
+      return newThat->name == this->name &&
+             *newThat->fp.get() == *this->fp.get();
+    }
   };
   
 
@@ -188,6 +212,7 @@ namespace AAM {
         case KLocationV: return "LocationV";
         case KFuncV: return "FuncV";
         case KPrimV: return "PrimV";
+        default: return "Unknown";
       }
     }
     
@@ -209,6 +234,7 @@ namespace AAM {
   };
 
   class Cont : public AbstractValue {
+  public:
     //TODO
     Cont() : AbstractValue(KContV) {}
     
@@ -240,6 +266,10 @@ namespace AAM {
     std::string getFunctionName() const {
       return fun->getName();
     }
+    
+    Function* getFunction() const {
+      return fun;
+    }
   
     inline bool operator==(const FuncValue& that) {
       return this->fun == that.fun;
@@ -263,7 +293,10 @@ namespace AAM {
 
   enum AbstractNat { Zero, One, Inf };
 
-  class Store {};
+  class Store {
+    virtual size_t size() const = 0;
+  };
+  
   class Succ {};
   class Pred {};
   class Measure {};
@@ -271,9 +304,6 @@ namespace AAM {
 
   struct State {};
   
-  /******** Static initialization ********/
-  
-  unsigned long long Location::id = 0;
 }
 
 namespace ConcreteAAM {
@@ -289,10 +319,11 @@ namespace ConcreteAAM {
       return loc->getKind() == KConcreteHeapAddr;
     }
     
-    virtual bool equalTo(const Location& that) const {
+    virtual bool equalTo(const Location& that) const override {
       if (!isa<ConcreteHeapAddr>(&that))
         return false;
       auto* newThat = dyn_cast<ConcreteHeapAddr>(&that);
+      //errs() << "that id: " << newThat->myId << " ; this id: " << this->myId << "\n";
       return newThat->myId == this->myId;
     }
     
@@ -311,11 +342,10 @@ namespace ConcreteAAM {
       return loc->getKind() == KConcreteStackPtr;
     }
     
-    virtual bool equalTo(const Location& that) const {
+    virtual bool equalTo(const Location& that) const override {
       if (!isa<ConcreteStackPtr>(&that))
         return false;
       auto* newThat = dyn_cast<ConcreteStackPtr>(&that);
-      errs() << "that id: " << newThat->myId << " ; this id: " << this->myId << "\n";
       return newThat->myId == this->myId;
     }
     
@@ -327,20 +357,25 @@ namespace ConcreteAAM {
   typedef ConcreteStackPtr ConcreteFramePtr;
 
   struct ConcreteStore : public Store {
-    typedef std::map<Location, std::shared_ptr<AbstractValue>> StoreMap;
+    typedef std::unordered_map<std::shared_ptr<Location>,
+                               std::shared_ptr<AbstractValue>,
+                               LocationHasher, LocationEqual> StoreMap;
     StoreMap m;
   public:
     ConcreteStore() {};
     ConcreteStore(StoreMap m) : m(m) {};
+    virtual size_t size() const {
+      return m.size();
+    }
 
-    AbstractValue* lookup(Location& loc) {
+    AbstractValue* lookup(std::shared_ptr<Location> loc) {
       auto it = m.find(loc);
       if (it != m.end()) return it->second.get();
       return nullptr;
     }
     
     /* Immutable update */
-    ConcreteStore update(Location& loc, std::shared_ptr<AbstractValue> val) {
+    ConcreteStore update(std::shared_ptr<Location> loc, std::shared_ptr<AbstractValue> val) {
       auto newMap = m;
       newMap[loc] = val;
       ConcreteStore newStore(newMap);
@@ -354,7 +389,7 @@ namespace ConcreteAAM {
      */
   };
 
-  //////////////////////////////////////////
+  /******** Static initialization ********/
 
   unsigned long long ConcreteHeapAddr::id = 0;
   unsigned long long ConcreteStackPtr::id = 0;
