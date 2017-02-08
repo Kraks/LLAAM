@@ -103,7 +103,6 @@ namespace {
       
       for (int i = 0; i <= 2000; i++) {
         ConcreteStore store4 = store.update(sp1, pv);
-        errs() << "size: " << store4.size() << "\n";
         someV = store4.lookup(sp1);
         assert(store4.size() == 4);
         //errs() << "classof: " << AbstractValue::KindToString(someV->getKind()) << "\n";
