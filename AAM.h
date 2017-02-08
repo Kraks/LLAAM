@@ -18,6 +18,11 @@
 
 using namespace llvm;
 
+/* TODO
+ * equality
+ * continuation
+ */
+
 namespace AAM {
   typedef std::string var;
 
@@ -32,11 +37,16 @@ namespace AAM {
       KHeapAddr,
         KConcreteHeapAddr,
         KZeroCFAHeapAddr,
+      KHeapAddrEnd,
+      
       KStackPtr,
         KConcreteStackPtr,
         KZeroCFAStackPtr,
+      KStackPtrEnd,
+      
       KBindAddr,
-        KLocalBindAddr
+        KLocalBindAddr,
+      KBindAddrEnd
     };
   
     static std::string KingToString(LocationKind v) {
@@ -56,18 +66,25 @@ namespace AAM {
       myId = id++;
     };
     
-    /* Used for when as Key type of map */
-    friend bool operator<(const Location &a, const Location &b) {
-      return a.myId < b.myId;
+    LocationKind getKind() const {
+      return kind;
     }
     
-    inline bool operator==(Location& that) {
-      errs() << "Location operator==\n";
-      return false;
+    /* Used for when as Key type of map */
+    friend bool operator<(const Location& a, const Location& b) {
+      return a.myId < b.myId;
+    }
+      
+    friend bool operator==(const Location& a, const Location& b) {
+      return a.equalTo(b);
     }
 
   protected:
     Location(LocationKind kind) : kind(kind) {}
+    virtual bool equalTo(const Location& that) const {
+      errs() << "LOC EQ\n";
+      return false;
+    }
     
   private:
     LocationKind kind;
@@ -75,18 +92,41 @@ namespace AAM {
     static unsigned long long id;
   };
 
-
   class HeapAddr : public Location {
   public:
-    inline bool operator==(HeapAddr& that) { return false; }
-
+    //inline bool operator==(HeapAddr& that) { return false; }
+    virtual bool equalTo(const Location& that) const {
+      return false;
+    }
+  
+    static bool classof(const Location* loc) {
+      LocationKind k = loc->getKind();
+      return k >= KHeapAddr && k <=KHeapAddrEnd;
+    }
   protected:
     HeapAddr(LocationKind kind) : Location(kind) {}
   };
 
   class StackPtr : public Location {
   public:
-    inline bool operator==(StackPtr& that) { return false; }
+    /*
+    friend bool operator==(const StackPtr& a, const StackPtr& b) {
+      return a.equalTo(b);
+    }
+    
+    virtual bool equalTo(const Location& that) const {
+      if (!isa<StackPtr>(&that)) return false;
+      
+      errs() << "to stack ptr equal to\n";
+      auto* newThat = dyn_cast<StackPtr>(&that);
+      return newThat->equalTo(*this);
+    }
+    */
+    
+    static bool classof(const Location* loc) {
+      LocationKind k = loc->getKind();
+      return k >= KStackPtr && k <= KStackPtrEnd;
+    }
 
   protected:
     StackPtr(LocationKind kind) : Location(kind) {}
@@ -96,7 +136,14 @@ namespace AAM {
 
   class BindAddr : public Location {
   public:
-    inline bool operator==(BindAddr& that) { return false; }
+    virtual bool equalTo(const Location& that) const {
+      return false;
+    }
+    
+    static bool classof(const Location* loc) {
+      LocationKind k = loc->getKind();
+      return k >= KBindAddr && k <= KBindAddrEnd;
+    }
 
   protected:
     BindAddr(LocationKind kind) : Location(kind) {}
@@ -105,8 +152,19 @@ namespace AAM {
   class LocalBindAddr : public BindAddr {
   public:
     LocalBindAddr(var name, FramePtr fp) : BindAddr(KLocalBindAddr), name(name), fp(fp) {};
-    inline bool operator==(LocalBindAddr& that) {
-      return (this->name == that.name && this->fp == that.fp);
+    
+    virtual bool equalTo(const Location& that) const {
+      if (!isa<LocalBindAddr>(&that))
+        return false;
+      auto* newThat = dyn_cast<LocalBindAddr>(&that);
+      errs() << "b1: " << (newThat->name == this->name);
+      errs() << "b2: " << (newThat->fp == this->fp);
+      return newThat->name == this->name &&
+             newThat->fp == this->fp;
+    }
+    
+    static bool classof(const Location* loc) {
+      return loc->getKind() == KLocalBindAddr;
     }
     
   private:
@@ -163,7 +221,6 @@ namespace AAM {
     Location loc;
   public:
     LocationValue(Location loc) : AbstractValue(KLocationV), loc(loc) {}
-    
     static bool classof(const AbstractValue* v) {
       return v->getKind() == KLocationV;
     }
@@ -185,8 +242,6 @@ namespace AAM {
     }
   
     inline bool operator==(const FuncValue& that) {
-      //errs() << "FuncValue operator== " << this->getFunctionName();
-      //errs() << " " << that.getFunctionName() << "\n";
       return this->fun == that.fun;
     }
   
@@ -230,8 +285,15 @@ namespace ConcreteAAM {
       myId = id++;
     }
     
-    inline bool operator==(ConcreteHeapAddr& that) {
-      return (this->myId == that.myId);
+    static bool classof(const Location* loc) {
+      return loc->getKind() == KConcreteHeapAddr;
+    }
+    
+    virtual bool equalTo(const Location& that) const {
+      if (!isa<ConcreteHeapAddr>(&that))
+        return false;
+      auto* newThat = dyn_cast<ConcreteHeapAddr>(&that);
+      return newThat->myId == this->myId;
     }
     
   private:
@@ -244,9 +306,17 @@ namespace ConcreteAAM {
     ConcreteStackPtr() : StackPtr(KConcreteStackPtr) {
       myId = id++;
     }
+  
+    static bool classof(const Location* loc) {
+      return loc->getKind() == KConcreteStackPtr;
+    }
     
-    inline bool operator==(ConcreteStackPtr& that) {
-      return (this->myId == that.myId);
+    virtual bool equalTo(const Location& that) const {
+      if (!isa<ConcreteStackPtr>(&that))
+        return false;
+      auto* newThat = dyn_cast<ConcreteStackPtr>(&that);
+      errs() << "that id: " << newThat->myId << " ; this id: " << this->myId << "\n";
+      return newThat->myId == this->myId;
     }
     
   private:
@@ -269,20 +339,15 @@ namespace ConcreteAAM {
       return nullptr;
     }
     
-    /*
-    ConcreteStore update(Location& loc, AbstractValue& val) {
+    /* Immutable update */
+    ConcreteStore update(Location& loc, std::shared_ptr<AbstractValue> val) {
       auto newMap = m;
-      auto it = newMap.find(loc);
-      if (it != newMap.end()) {
-        it->second = &val;
-      }
-      else {
-        newMap.insert({loc, val});
-      }
+      newMap[loc] = val;
       ConcreteStore newStore(newMap);
       return newStore;
     }
     
+    /*
     inline bool operator==(ConcreteStore& that) {
       return (this->m == that.m);
     }
