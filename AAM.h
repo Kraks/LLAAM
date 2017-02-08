@@ -49,7 +49,7 @@ namespace AAM {
       KBindAddrEnd
     };
   
-    static std::string KingToString(LocationKind v) {
+    static std::string KindToString(LocationKind v) {
       switch (v) {
         case KHeapAddr: return "HeapAddr";
         case KConcreteHeapAddr: return "ConcreteHeapAddr";
