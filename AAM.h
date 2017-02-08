@@ -10,6 +10,7 @@
 #include <map>
 #include <vector>
 #include <algorithm>
+#include <memory>
 
 #ifndef LLVM_AAM_H
 #define LLVM_AAM_H
@@ -19,14 +20,21 @@ using namespace llvm;
 namespace AAM {
   typedef std::string var;
 
+  /* Location = HeapAddr | StackPtr | FramePtr | BindAddr
+   */
   class Location {
   public:
     unsigned long long myId;
     Location() {
       myId = id++;
     };
-    friend bool operator < (const Location &a, const Location &b) {
+    /* Used for when as Key type of map */
+    friend bool operator<(const Location &a, const Location &b) {
       return a.myId < b.myId;
+    }
+    inline bool operator==(Location& that) {
+      errs() << "Location operator==\n";
+      return false;
     }
   private:
     static unsigned long long id;
@@ -34,50 +42,99 @@ namespace AAM {
 
   unsigned long long Location::id = 0;
 
-  class HeapAddr : public Location {};
-  class StackPtr : public Location {};
+  class HeapAddr : public Location {
+  public:
+    inline bool operator==(HeapAddr& that) { return false; }
+  };
+
+  class StackPtr : public Location {
+  public:
+    inline bool operator==(StackPtr& that) { return false; }
+  };
+
   typedef StackPtr FramePtr;
-  class BindAddr : public Location {};
+
+  class BindAddr : public Location {
+  public:
+    inline bool operator==(BindAddr& that) { return false; }
+  };
 
   class LocalBindAddr : public BindAddr {
     var name;
     FramePtr fp;
   public:
     LocalBindAddr(var name, FramePtr fp) : name(name), fp(fp) {};
+    inline bool operator==(LocalBindAddr& that) {
+      return (this->name == that.name && this->fp == that.fp);
+    }
   };
 
+  /* AbstractValue = Cont | LocationValue | FuncValue | PrimValue
+   */
   class AbstractValue {
-    unsigned long long myId;
   public:
+    enum ValType {ContV, LocationV, FuncV, PrimV};
+    static std::string valTypeToString(ValType v) {
+      switch (v) {
+        case ContV: return "ContV";
+        case LocationV: return "LocationV";
+        case FuncV: return "FuncV";
+        case PrimV: return "PrimV";
+      }
+    }
+    ValType getValType() {
+      return valType;
+    }
     inline bool operator==(const AbstractValue& that) {
       return false;
     }
+  private:
+    unsigned long long myId;
+    ValType valType;
+    AbstractValue() {}
+  protected:
+    AbstractValue(ValType valType): valType(valType) {}
   };
-  class Cont : public AbstractValue {};
+
+  class Cont : public AbstractValue {
+    Cont() : AbstractValue(ContV) {}
+  };
+
   class LocationValue : public AbstractValue {
     Location loc;
   public:
-    LocationValue(Location loc) : loc(loc) {};
+    LocationValue(Location loc) : AbstractValue(LocationV), loc(loc) {}
   };
+
   class FuncValue : public AbstractValue {
-    Function& fun;
+    Function* fun;
   public:
-    FuncValue(Function& fun) : fun(fun) {};
+    FuncValue(Function* fun) : AbstractValue(FuncV), fun(fun) {}
+    FuncValue(const FuncValue& funcValue) : AbstractValue(FuncV), fun(funcValue.fun) {}
+    
+    FuncValue& operator=(FuncValue that) {
+      this->fun = that.fun;
+      return *this;
+    }
+
+    std::string getFunctionName() const {
+      return fun->getName();
+    }
+  
     inline bool operator==(const FuncValue& that) {
-      return &this->fun == &that.fun;
+      errs() << "FuncValue operator== " << this->getFunctionName();
+      errs() << " " << that.getFunctionName() << "\n";
+      return this->fun == that.fun;
+      //return this->getFunctionName() == that.getFunctionName();
     }
   };
+
   class PrimValue : public AbstractValue {
   public:
-    static PrimValue& getInstance() {
-      static PrimValue instance;
-      return instance;
+    PrimValue() : AbstractValue(PrimV) {}
+    inline bool operator==(const PrimValue& that) {
+      return true;
     }
-    PrimValue(PrimValue const&) = delete;
-    void operator=(PrimValue const&) = delete;
-
-  private:
-    PrimValue() {}
   };
 
   enum AbstractNat { Zero, One, Inf };
@@ -100,15 +157,22 @@ namespace ConcreteAAM {
     ConcreteHeapAddr() {
       myId = id++;
     }
+    inline bool operator==(ConcreteHeapAddr& that) {
+      return (this->myId == that.myId);
+    }
   private:
     static unsigned long long id;
   };
 
-  class ConcreteStackPtr : public Location {
+  class ConcreteStackPtr : public StackPtr {
     unsigned long long myId;
   public:
     ConcreteStackPtr() {
       myId = id++;
+    }
+    inline bool operator==(ConcreteStackPtr& that) {
+      errs() << "ConcreteStackPtr operator==\n";
+      return (this->myId == that.myId);
     }
   private:
     static unsigned long long id;
@@ -117,22 +181,24 @@ namespace ConcreteAAM {
   typedef ConcreteStackPtr ConcreteFramePtr;
 
   struct ConcreteStore : public Store {
-    std::map<Location, AbstractValue> m;
+    typedef std::map<Location, std::shared_ptr<AbstractValue>> StoreMap;
+    StoreMap m;
   public:
     ConcreteStore() {};
-    ConcreteStore(std::map<Location, AbstractValue> m) : m(m) {};
+    ConcreteStore(StoreMap m) : m(m) {};
 
     AbstractValue* lookup(Location& loc) {
       auto it = m.find(loc);
-      if (it != m.end()) return &it->second;
+      if (it != m.end()) return it->second.get();
       return nullptr;
     }
-
+    
+    /*
     ConcreteStore update(Location& loc, AbstractValue& val) {
       auto newMap = m;
       auto it = newMap.find(loc);
       if (it != newMap.end()) {
-        it->second = val;
+        it->second = &val;
       }
       else {
         newMap.insert({loc, val});
@@ -140,6 +206,11 @@ namespace ConcreteAAM {
       ConcreteStore newStore(newMap);
       return newStore;
     }
+    
+    inline bool operator==(ConcreteStore& that) {
+      return (this->m == that.m);
+    }
+     */
   };
 
   //////////////////////////////////////////
@@ -151,6 +222,7 @@ namespace ConcreteAAM {
 namespace AbstractAAM {
   using namespace AAM;
 
+  /*
   class ZeroCFAHeapAddr : public HeapAddr {
     //TODO
   };
@@ -165,6 +237,7 @@ namespace AbstractAAM {
     std::set<AbstractValue> s;
 
   };
+  */
 }
 
 
