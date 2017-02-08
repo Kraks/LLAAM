@@ -22,36 +22,22 @@ namespace {
     AAMPass() : ModulePass(ID) {}
     
     void testStore(Module& M) {
-      // test equal and update
-      /*
-      Function* add = M.getFunction("add");
-      Function* sub = M.getFunction("sub");
-      FuncValue fadd(add);
-      FuncValue fsub(sub);
-      
-      ConcreteStackPtr sp1;
-      ConcreteStackPtr sp2;
-      
-      ConcreteStore s1({{sp1, &fadd}});
-      ConcreteStore s2({{sp1, &fsub}});
-      
-      errs() << "store eq: " << (s1 == s2) << "\n"; // false
-       */
-    }
-    
-    void testStoreLookup(Module& M) {
       Function* mainFunc = M.getFunction("main");
       printInst(*mainFunc);
   
       std::shared_ptr<FuncValue> f1 = std::make_shared<FuncValue>(mainFunc);
       std::shared_ptr<FuncValue> f2 = std::make_shared<FuncValue>(mainFunc);
       std::shared_ptr<PrimValue> pv = std::make_shared<PrimValue>();
-      errs() << "functions eq: " << (*f1.get() == *f2.get()) << "\n"; // true
+      assert((*f1.get() == *f2.get()));
+      //errs() << "functions eq: " << (*f1.get() == *f2.get()) << "\n"; // true
   
       ConcreteStackPtr sp1;
       ConcreteStackPtr sp2;
       ConcreteHeapAddr hp1;
       ConcreteHeapAddr hp2;
+      assert(!(sp1 == sp2));
+      assert(!(hp1 == hp2));
+      
       //errs() << "stack ptrs eq: " << (sp1 == sp2) << "\n"; // false
       ConcreteStore store({{sp1, f1}, {sp2, f2}, {hp1, pv}, {hp2, pv}});
   
@@ -59,19 +45,28 @@ namespace {
       AbstractValue* v2 = store.lookup(sp2);
       FuncValue* f11 = static_cast<FuncValue*>(v1);
       FuncValue* f22 = static_cast<FuncValue*>(v2);
-      errs() << "functions(get from store) eq: " << (*f11 == *f22) << "\n"; // true
+      assert(*f11 == *f22);
+      //errs() << "functions(get from store) eq: " << (*f11 == *f22) << "\n"; // true
       
       AbstractValue* someV = store.lookup(sp2);
-      errs() << AbstractValue::valTypeToString(someV->getValType()) << "\n";
+      errs() << AbstractValue::valTypeToString(someV->getKind()) << "\n";
       
       PrimValue* fakepv = static_cast<PrimValue*>(store.lookup(sp2));
-      if (fakepv == nullptr) { errs() << "fake pv null\n"; }
-      else { errs() << "fake pv not null\n"; }
+      assert(!(fakepv == nullptr));
       
+      someV = store.lookup(hp1);
+      assert(isa<PrimValue>(someV));
+      someV = store.lookup(hp2);
+      assert(!isa<FuncValue>(someV));
+      
+      PrimValue* pv1 = static_cast<PrimValue*>(store.lookup(hp1));
+      PrimValue* pv2 = static_cast<PrimValue*>(store.lookup(hp2));
+      assert(*pv1 == *pv2);
+      //errs() << "PrimVal eq: " << (*pv1 == *pv2) << "\n";
     }
 
     bool runOnModule(Module& M) override {
-      testStoreLookup(M);
+      testStore(M);
       return false;
     }
 

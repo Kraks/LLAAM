@@ -5,6 +5,7 @@
 #include "llvm/Pass.h"
 #include "llvm/IR/Module.h"
 #include "llvm/IR/Function.h"
+#include "llvm/Support/Casting.h"
 
 #include <set>
 #include <map>
@@ -20,23 +21,44 @@ using namespace llvm;
 namespace AAM {
   typedef std::string var;
 
-  /* Location = HeapAddr | StackPtr | FramePtr | BindAddr
+  /* Location = HeapAddr
+   *          | StackPtr
+   *          | FramePtr
+   *          | BindAddr
    */
   class Location {
   public:
-    unsigned long long myId;
+    enum LocationKind {
+      KHeapAddr,
+        KConcreteHeapAddr,
+        KZeroCFAHeapAddr,
+      KStackPtr,
+        KConcreteStackPtr,
+        KZeroCFAStackPtr,
+      KBindAddr,
+        KLocalBindAddr
+    };
+    
     Location() {
       myId = id++;
     };
+    
     /* Used for when as Key type of map */
     friend bool operator<(const Location &a, const Location &b) {
       return a.myId < b.myId;
     }
+    
     inline bool operator==(Location& that) {
       errs() << "Location operator==\n";
       return false;
     }
+
+  protected:
+    Location(LocationKind kind) : kind(kind) {}
+    
   private:
+    LocationKind kind;
+    unsigned long long myId;
     static unsigned long long id;
   };
 
@@ -45,11 +67,17 @@ namespace AAM {
   class HeapAddr : public Location {
   public:
     inline bool operator==(HeapAddr& that) { return false; }
+
+  protected:
+    HeapAddr(LocationKind kind) : Location(kind) {}
   };
 
   class StackPtr : public Location {
   public:
     inline bool operator==(StackPtr& that) { return false; }
+
+  protected:
+    StackPtr(LocationKind kind) : Location(kind) {}
   };
 
   typedef StackPtr FramePtr;
@@ -57,60 +85,81 @@ namespace AAM {
   class BindAddr : public Location {
   public:
     inline bool operator==(BindAddr& that) { return false; }
+
+  protected:
+    BindAddr(LocationKind kind) : Location(kind) {}
   };
 
   class LocalBindAddr : public BindAddr {
-    var name;
-    FramePtr fp;
   public:
-    LocalBindAddr(var name, FramePtr fp) : name(name), fp(fp) {};
+    LocalBindAddr(var name, FramePtr fp) : BindAddr(KLocalBindAddr), name(name), fp(fp) {};
     inline bool operator==(LocalBindAddr& that) {
       return (this->name == that.name && this->fp == that.fp);
     }
+    
+  private:
+    var name;
+    FramePtr fp;
   };
 
-  /* AbstractValue = Cont | LocationValue | FuncValue | PrimValue
+  /* AbstractValue = Cont
+   *               | LocationValue
+   *               | FuncValue
+   *               | PrimValue
    */
   class AbstractValue {
   public:
-    enum ValType {ContV, LocationV, FuncV, PrimV};
-    static std::string valTypeToString(ValType v) {
+    enum ValKind { KContV, KLocationV, KFuncV, KPrimV };
+    
+    static std::string valTypeToString(ValKind v) {
       switch (v) {
-        case ContV: return "ContV";
-        case LocationV: return "LocationV";
-        case FuncV: return "FuncV";
-        case PrimV: return "PrimV";
+        case KContV: return "ContV";
+        case KLocationV: return "LocationV";
+        case KFuncV: return "FuncV";
+        case KPrimV: return "PrimV";
       }
     }
-    ValType getValType() {
-      return valType;
+    
+    ValKind getKind() const {
+      return kind;
     }
+    
     inline bool operator==(const AbstractValue& that) {
       return false;
     }
+    
   private:
+    ValKind kind;
     unsigned long long myId;
-    ValType valType;
     AbstractValue() {}
+    
   protected:
-    AbstractValue(ValType valType): valType(valType) {}
+    AbstractValue(ValKind kind): kind(kind) {}
   };
 
   class Cont : public AbstractValue {
-    Cont() : AbstractValue(ContV) {}
+    Cont() : AbstractValue(KContV) {}
+    
+    static bool classof(const AbstractValue* v) {
+      return v->getKind() == KContV;
+    }
   };
 
   class LocationValue : public AbstractValue {
     Location loc;
   public:
-    LocationValue(Location loc) : AbstractValue(LocationV), loc(loc) {}
+    LocationValue(Location loc) : AbstractValue(KLocationV), loc(loc) {}
+    
+    static bool classof(const AbstractValue* v) {
+      return v->getKind() == KLocationV;
+    }
   };
 
   class FuncValue : public AbstractValue {
     Function* fun;
   public:
-    FuncValue(Function* fun) : AbstractValue(FuncV), fun(fun) {}
-    FuncValue(const FuncValue& funcValue) : AbstractValue(FuncV), fun(funcValue.fun) {}
+    FuncValue(Function* fun) : AbstractValue(KFuncV), fun(fun) {}
+    FuncValue(const FuncValue& funcValue) : AbstractValue(KFuncV), fun(funcValue.fun) {}
     
     FuncValue& operator=(FuncValue that) {
       this->fun = that.fun;
@@ -122,18 +171,24 @@ namespace AAM {
     }
   
     inline bool operator==(const FuncValue& that) {
-      errs() << "FuncValue operator== " << this->getFunctionName();
-      errs() << " " << that.getFunctionName() << "\n";
+      //errs() << "FuncValue operator== " << this->getFunctionName();
+      //errs() << " " << that.getFunctionName() << "\n";
       return this->fun == that.fun;
-      //return this->getFunctionName() == that.getFunctionName();
+    }
+  
+    static bool classof(const AbstractValue* v) {
+      return v->getKind() == KFuncV;
     }
   };
 
   class PrimValue : public AbstractValue {
   public:
-    PrimValue() : AbstractValue(PrimV) {}
+    PrimValue() : AbstractValue(KPrimV) {}
     inline bool operator==(const PrimValue& that) {
       return true;
+    }
+    static bool classof(const AbstractValue* v) {
+      return v->getKind() == KPrimV;
     }
   };
 
@@ -152,29 +207,32 @@ namespace ConcreteAAM {
   using namespace AAM;
 
   class ConcreteHeapAddr : public HeapAddr {
-    unsigned long long myId;
   public:
-    ConcreteHeapAddr() {
+    ConcreteHeapAddr() : HeapAddr(KConcreteHeapAddr) {
       myId = id++;
     }
+    
     inline bool operator==(ConcreteHeapAddr& that) {
       return (this->myId == that.myId);
     }
+    
   private:
+    unsigned long long myId;
     static unsigned long long id;
   };
 
   class ConcreteStackPtr : public StackPtr {
-    unsigned long long myId;
   public:
-    ConcreteStackPtr() {
+    ConcreteStackPtr() : StackPtr(KConcreteStackPtr) {
       myId = id++;
     }
+    
     inline bool operator==(ConcreteStackPtr& that) {
-      errs() << "ConcreteStackPtr operator==\n";
       return (this->myId == that.myId);
     }
+    
   private:
+    unsigned long long myId;
     static unsigned long long id;
   };
 
