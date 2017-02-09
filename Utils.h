@@ -17,5 +17,6 @@ using namespace llvm;
 
 void printModuleInfo(Module& M);
 void printInst(Function& F);
+Instruction* getEntry(Function& F);
 
 #endif //LLVM_UTILS_H

@@ -12,6 +12,7 @@
 #include "ConcreteAAM.h"
 #include "Utils.h"
 
+using namespace std;
 using namespace llvm;
 using namespace AAM;
 using namespace ConcreteAAM;
@@ -66,7 +67,7 @@ namespace {
       assert(*baddr1.get() == *baddr2.get());
       assert(!(*baddr1.get() == *sp1.get()));
       assert(!(*baddr1.get() == *hp2.get()));
-  
+      
       //errs() << "stack ptrs eq: " << (sp1 == sp2) << "\n"; // false
       ConcreteStore store({{sp1, f1}, {sp2, f2}, {hp1, pv}, {hp2, pv}});
       assert(store == store);
@@ -77,27 +78,32 @@ namespace {
       assert(store3.size() == 1);
       assert(store2 == store3);
       
-      AbstractValue* v1 = store.lookup(sp1).getValue();
-      AbstractValue* v2 = store.lookup(sp2).getValue();
-      FuncValue* f11 = static_cast<FuncValue*>(v1);
-      FuncValue* f22 = static_cast<FuncValue*>(v2);
+      shared_ptr<LocalBindAddr> baddr3 = make_shared<LocalBindAddr>("y", sp3);
+      assert(!store.lookup(baddr3).hasValue());
+      
+      shared_ptr<AbstractValue> v1 = store.lookup(sp1).getValue();
+      shared_ptr<AbstractValue> v2 = store.lookup(sp2).getValue();
+      shared_ptr<FuncValue> f11 = static_pointer_cast<FuncValue>(v1);
+      shared_ptr<FuncValue> f22 = static_pointer_cast<FuncValue>(v2);
       assert(*f11 == *f22);
       //errs() << "functions(get from store) eq: " << (*f11 == *f22) << "\n"; // true
       
-      AbstractValue* someV = store.lookup(sp2).getValue();
+      shared_ptr<AbstractValue> someV = store.lookup(sp2).getValue();
       //errs() << AbstractValue::KindToString(someV->getKind()) << "\n";
       
-      PrimValue* fakepv = static_cast<PrimValue*>(store.lookup(sp2).getValue());
+      shared_ptr<PrimValue> fakepv = static_pointer_cast<PrimValue>(store.lookup(sp2).getValue());
       assert(!(fakepv == nullptr));
   
       someV = store.lookup(hp1).getValue();
       //errs() << AbstractValue::KindToString(someV->getKind()) << "\n";
-      assert(isa<PrimValue>(someV));
+      assert(isa<PrimValue>(*someV));
       someV = store.lookup(hp2).getValue();
-      assert(!isa<FuncValue>(someV));
+      assert(!isa<FuncValue>(*someV));
   
-      PrimValue* pv1 = static_cast<PrimValue*>(store.lookup(hp1).getValue());
-      PrimValue* pv2 = static_cast<PrimValue*>(store.lookup(hp2).getValue());
+      shared_ptr<PrimValue> pv1 = static_pointer_cast<PrimValue>(store.lookup(hp1).getValue());
+      shared_ptr<PrimValue> pv2 = static_pointer_cast<PrimValue>(store.lookup(hp2).getValue());
+      std::shared_ptr<AbstractValue> ap(pv1);
+      assert(*ap == *pv1);
       assert(*pv1 == *pv2);
       //errs() << "PrimVal eq: " << (*pv1 == *pv2) << "\n";
       
@@ -106,11 +112,18 @@ namespace {
         someV = store4.lookup(sp1).getValue();
         assert(store4.size() == 4);
         //errs() << "classof: " << AbstractValue::KindToString(someV->getKind()) << "\n";
-        assert(isa<PrimValue>(someV));
+        assert(isa<PrimValue>(*someV));
         
         someV = store.lookup(sp1).getValue();
-        assert(isa<FuncValue>(someV));
+        assert(isa<FuncValue>(*someV));
       }
+      
+      shared_ptr<Cont> c1 = make_shared<Cont>("x", )
+    }
+    
+    static void testLLVM(Module& M) {
+      Function* mainFunc = M.getFunction("main");
+      Instruction* inst = getEntry(*mainFunc);
     }
 
     bool runOnModule(Module& M) override {

@@ -71,25 +71,25 @@ namespace ConcreteAAM {
   typedef ConcreteStackPtr ConcreteFramePtr;
   
   struct ConcreteStore : public Store {
-    typedef std::map<std::shared_ptr<Location>,
-    std::shared_ptr<AbstractValue>,
-    LocationLess> StoreMap;
-    StoreMap m;
   public:
+    typedef std::shared_ptr<Location> Key;
+    typedef std::shared_ptr<AbstractValue> Val;
+    typedef std::map<Key, Val, LocationLess> StoreMap;
+    
     ConcreteStore() {};
     ConcreteStore(StoreMap m) : m(m) {};
     virtual size_t size() const {
       return m.size();
     }
     
-    Optional<AbstractValue*> lookup(std::shared_ptr<Location> loc) {
+    Optional<ConcreteStore::Val> lookup(ConcreteStore::Key loc) {
       auto it = m.find(loc);
-      if (it != m.end()) return it->second.get();
+      if (it != m.end()) return it->second;
       return None;
     }
     
     /* Immutable update */
-    ConcreteStore update(std::shared_ptr<Location> loc, std::shared_ptr<AbstractValue> val) {
+    ConcreteStore update(ConcreteStore::Key loc, ConcreteStore::Val val) {
       auto newMap = m;
       newMap[loc] = val;
       ConcreteStore newStore(newMap);
@@ -103,16 +103,35 @@ namespace ConcreteAAM {
       return this->m.size() == that.m.size() &&
              std::equal(this->m.begin(), this->m.end(), that.m.begin(), pred);
     }
+    
+  private:
+    StoreMap m;
   };
   
   class ConcreteSucc : public Succ {
-    typedef std::map<std::shared_ptr<Location>,
-                     std::shared_ptr<Location>,
-                     LocationLess> SuccMap;
-    SuccMap m;
   public:
+    typedef std::shared_ptr<Location> Key;
+    typedef std::shared_ptr<Location> Val;
+    typedef std::map<Key, Val, LocationLess> SuccMap;
+    
     ConcreteSucc(SuccMap m) : m(m) {}
     
+    Optional<ConcreteSucc::Val> lookup(ConcreteSucc::Key loc) {
+      auto it = m.find(loc);
+      if (it != m.end()) return it->second;
+      return None;
+    }
+  
+    inline bool operator==(ConcreteSucc& that) {
+      auto pred = [] (decltype(*m.begin()) a, decltype(*m.begin()) b) {
+        return *a.first == *b.first && *a.second == *b.second;
+      };
+      return this->m.size() == that.m.size() &&
+             std::equal(this->m.begin(), this->m.end(), that.m.begin(), pred);
+    }
+    
+  private:
+    SuccMap m;
   };
   
   /******** Static initialization ********/

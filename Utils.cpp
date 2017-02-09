@@ -26,3 +26,13 @@ void printInst(Function& F) {
     errs() << "\n";
   }
 }
+
+Instruction* getEntry(Function& F) {
+  inst_iterator beg = inst_begin(F);
+  Instruction* inst =static_cast<Instruction*>(&*beg);
+  return inst;
+}
+
+Instruction* getNextInst(Instruction* inst) {
+  return inst->getNextNode();
+}
