@@ -76,39 +76,39 @@ namespace {
       ConcreteStore store3({{sp1, f2}});
       assert(store3.size() == 1);
       assert(store2 == store3);
-  
-      AbstractValue* v1 = store.lookup(sp1);
-      AbstractValue* v2 = store.lookup(sp2);
+      
+      AbstractValue* v1 = store.lookup(sp1).getValue();
+      AbstractValue* v2 = store.lookup(sp2).getValue();
       FuncValue* f11 = static_cast<FuncValue*>(v1);
       FuncValue* f22 = static_cast<FuncValue*>(v2);
       assert(*f11 == *f22);
       //errs() << "functions(get from store) eq: " << (*f11 == *f22) << "\n"; // true
       
-      AbstractValue* someV = store.lookup(sp2);
+      AbstractValue* someV = store.lookup(sp2).getValue();
       //errs() << AbstractValue::KindToString(someV->getKind()) << "\n";
       
-      PrimValue* fakepv = static_cast<PrimValue*>(store.lookup(sp2));
+      PrimValue* fakepv = static_cast<PrimValue*>(store.lookup(sp2).getValue());
       assert(!(fakepv == nullptr));
   
-      someV = store.lookup(hp1);
-      errs() << AbstractValue::KindToString(someV->getKind()) << "\n";
+      someV = store.lookup(hp1).getValue();
+      //errs() << AbstractValue::KindToString(someV->getKind()) << "\n";
       assert(isa<PrimValue>(someV));
-      someV = store.lookup(hp2);
+      someV = store.lookup(hp2).getValue();
       assert(!isa<FuncValue>(someV));
   
-      PrimValue* pv1 = static_cast<PrimValue*>(store.lookup(hp1));
-      PrimValue* pv2 = static_cast<PrimValue*>(store.lookup(hp2));
+      PrimValue* pv1 = static_cast<PrimValue*>(store.lookup(hp1).getValue());
+      PrimValue* pv2 = static_cast<PrimValue*>(store.lookup(hp2).getValue());
       assert(*pv1 == *pv2);
       //errs() << "PrimVal eq: " << (*pv1 == *pv2) << "\n";
       
       for (int i = 0; i <= 2000; i++) {
         ConcreteStore store4 = store.update(sp1, pv);
-        someV = store4.lookup(sp1);
+        someV = store4.lookup(sp1).getValue();
         assert(store4.size() == 4);
         //errs() << "classof: " << AbstractValue::KindToString(someV->getKind()) << "\n";
         assert(isa<PrimValue>(someV));
         
-        someV = store.lookup(sp1);
+        someV = store.lookup(sp1).getValue();
         assert(isa<FuncValue>(someV));
       }
     }

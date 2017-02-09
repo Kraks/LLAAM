@@ -14,14 +14,16 @@
 #include <algorithm>
 #include <memory>
 
+#include "Utils.h"
+
 #ifndef LLVM_AAM_H
 #define LLVM_AAM_H
 
 using namespace llvm;
 
 /* TODO
- * equality
- * continuation
+ * test cont
+ * copy constructor for abs location
  */
 
 namespace AAM {
@@ -203,7 +205,6 @@ namespace AAM {
     }
   };
   
-
   /* AbstractValue = Cont
    *               | LocationValue
    *               | FuncValue
@@ -244,9 +245,14 @@ namespace AAM {
   };
 
   class Cont : public AbstractValue {
+  private:
+    var lhs;
+    Instruction* inst;
+    FramePtr framePtr;
+    StackPtr stackPtr;
   public:
-    //TODO
-    Cont() : AbstractValue(KContV) {}
+    Cont(var lhs, Instruction* inst, FramePtr framePtr, StackPtr stackPtr)
+      : AbstractValue(KContV), lhs(lhs), inst(inst), framePtr(framePtr), stackPtr(stackPtr) {}
     
     static bool classof(const AbstractValue* v) {
       return v->getKind() == KContV;
@@ -254,8 +260,13 @@ namespace AAM {
 
   protected:
     virtual bool equalTo(const AbstractValue& that) const override {
-      assert(false && "should not call Cont::equalTo");
-      return false;
+      if (!isa<Cont>(&that))
+        return false;
+      auto* newThat = dyn_cast<Cont>(&that);
+      return this->lhs == newThat->lhs &&
+             this->inst == newThat->inst &&
+             this->framePtr == newThat->framePtr &&
+             this->stackPtr == newThat->stackPtr;
     }
   };
 
@@ -266,6 +277,10 @@ namespace AAM {
     
     static bool classof(const AbstractValue* v) {
       return v->getKind() == KLocationV;
+    }
+    
+    Location& getLocation() {
+      return loc;
     }
 
   protected:
@@ -331,6 +346,16 @@ namespace AAM {
   };
   
   class Succ {};
+  class ConcreteSucc : public Succ {
+    typedef std::map<std::shared_ptr<Location>,
+                     std::shared_ptr<Location>,
+                     LocationLess> SuccMap;
+    SuccMap m;
+  public:
+    ConcreteSucc(SuccMap m) : m(m) {}
+    
+  };
+  
   class Pred {};
   class Measure {};
   class Conf {};
@@ -415,10 +440,10 @@ namespace ConcreteAAM {
       return m.size();
     }
 
-    AbstractValue* lookup(std::shared_ptr<Location> loc) {
+    Optional<AbstractValue*> lookup(std::shared_ptr<Location> loc) {
       auto it = m.find(loc);
       if (it != m.end()) return it->second.get();
-      return nullptr;
+      return None;
     }
     
     /* Immutable update */
