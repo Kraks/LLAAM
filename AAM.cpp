@@ -118,7 +118,16 @@ namespace {
         assert(isa<FuncValue>(*someV));
       }
       
-      shared_ptr<Cont> c1 = make_shared<Cont>("x", )
+      Instruction* i1 = getEntry(*mainFunc);
+      Instruction* i2 = getNextInst(i1);
+      
+      shared_ptr<Cont> c1 = make_shared<Cont>("x", i1, sp1, sp2);
+      assert(*c1 == *c1);
+      shared_ptr<Cont> c2 = make_shared<Cont>("y", i2, sp1, sp2);
+      assert(*c2 == *c2);
+      assert(!(*c1 == *c2));
+      
+      
     }
     
     static void testLLVM(Module& M) {

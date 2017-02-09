@@ -22,7 +22,7 @@
 using namespace llvm;
 
 /* TODO
- * test cont
+ * test locationvalue
  * copy constructor for abs location
  */
 
@@ -201,7 +201,7 @@ namespace AAM {
         return false;
       auto* newThat = dyn_cast<LocalBindAddr>(&that);
       return newThat->name == this->name &&
-             *newThat->fp.get() == *this->fp.get();
+             *newThat->fp == *this->fp;
     }
   };
   
@@ -248,10 +248,10 @@ namespace AAM {
   private:
     var lhs;
     Instruction* inst;
-    FramePtr framePtr;
-    StackPtr stackPtr;
+    std::shared_ptr<FramePtr> framePtr;
+    std::shared_ptr<StackPtr> stackPtr;
   public:
-    Cont(var lhs, Instruction* inst, FramePtr framePtr, StackPtr stackPtr)
+    Cont(var lhs, Instruction* inst, std::shared_ptr<FramePtr> framePtr, std::shared_ptr<StackPtr> stackPtr)
       : AbstractValue(KContV), lhs(lhs), inst(inst), framePtr(framePtr), stackPtr(stackPtr) {}
     
     static bool classof(const AbstractValue* v) {
@@ -264,22 +264,22 @@ namespace AAM {
         return false;
       auto* newThat = dyn_cast<Cont>(&that);
       return this->lhs == newThat->lhs &&
-             this->inst == newThat->inst &&
-             this->framePtr == newThat->framePtr &&
-             this->stackPtr == newThat->stackPtr;
+             this->inst == newThat->inst && // TODO: this->inst==that->inst or *this->inst==*that->inst ?
+             *this->framePtr == *newThat->framePtr &&
+             *this->stackPtr == *newThat->stackPtr;
     }
   };
 
   class LocationValue : public AbstractValue {
-    Location loc;
+    std::shared_ptr<Location> loc;
   public:
-    LocationValue(Location loc) : AbstractValue(KLocationV), loc(loc) {}
+    LocationValue(std::shared_ptr<Location> loc) : AbstractValue(KLocationV), loc(loc) {}
     
     static bool classof(const AbstractValue* v) {
       return v->getKind() == KLocationV;
     }
-    
-    Location& getLocation() {
+  
+    std::shared_ptr<Location>  getLocation() {
       return loc;
     }
 
@@ -288,7 +288,7 @@ namespace AAM {
       if (!isa<LocationValue>(&that))
         return false;
       auto* newThat = dyn_cast<LocationValue>(&that);
-      return this->loc == newThat->loc;
+      return *this->loc == *newThat->loc;
     }
   };
 
