@@ -136,7 +136,6 @@ namespace {
       
       shared_ptr<FramePtr> sp1_copy = c1->getFramePtr();
       assert(sp1.get() == sp1_copy.get());
-      
     }
     
     static void testLLVM(Module& M) {

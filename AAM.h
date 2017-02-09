@@ -352,7 +352,7 @@ namespace AAM {
   };
   
   class Succ {};
-  class Pred {};
+  typedef Succ Pred;
   
   class Measure {};
   class Conf {};

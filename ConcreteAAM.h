@@ -6,6 +6,8 @@
 #ifndef LLVM_CONCRETEAAM_H
 #define LLVM_CONCRETEAAM_H
 
+//TODO Using template refactor Store/Succ/Pred
+
 namespace ConcreteAAM {
   using namespace AAM;
   
@@ -70,6 +72,50 @@ namespace ConcreteAAM {
   
   typedef ConcreteStackPtr ConcreteFramePtr;
   
+  template<class K, class V, class Less>
+  class GeneralStore {
+  public:
+    typedef std::shared_ptr<K> Key;
+    typedef std::shared_ptr<V> Val;
+    typedef std::map<Key, Val, Less> StoreMap;
+    
+    GeneralStore() {};
+    GeneralStore(StoreMap m) : m(m) {};
+    virtual size_t size() const {
+      return m.size();
+    }
+    
+    Optional<GeneralStore::Val> lookup(GeneralStore::Key key) {
+      auto it = m.find(key);
+      if (it != m.end()) return it->second;
+      return None;
+    }
+    
+    /* Immutable update */
+    GeneralStore<K,V,Less> update(GeneralStore::Key key, GeneralStore::Val val) {
+      auto newMap = m;
+      newMap[key] = val;
+      GeneralStore<K,V,Less> newStore(newMap);
+      return newStore;
+    }
+    
+    inline bool operator==(GeneralStore& that) {
+      auto pred = [] (decltype(*m.begin()) a, decltype(*m.begin()) b) {
+        return *a.first == *b.first && *a.second == *b.second;
+      };
+      return this->m.size() == that.m.size() &&
+             std::equal(this->m.begin(), this->m.end(), that.m.begin(), pred);
+    }
+  
+  private:
+    StoreMap m;
+  };
+  
+  typedef GeneralStore<Location, AbstractValue, LocationLess> ConcreteStore;
+  typedef GeneralStore<Location, Location, LocationLess> ConcreteSucc;
+  typedef GeneralStore<Location, Location, LocationLess> ConcretePred;
+  
+  /*
   struct ConcreteStore : public Store {
   public:
     typedef std::shared_ptr<Location> Key;
@@ -88,7 +134,7 @@ namespace ConcreteAAM {
       return None;
     }
     
-    /* Immutable update */
+    // Immutable update
     ConcreteStore update(ConcreteStore::Key loc, ConcreteStore::Val val) {
       auto newMap = m;
       newMap[loc] = val;
@@ -122,6 +168,14 @@ namespace ConcreteAAM {
       return None;
     }
   
+    // Immutable update
+    ConcreteSucc update(ConcreteSucc::Key loc, ConcreteSucc::Val val) {
+      auto newMap = m;
+      newMap[loc] = val;
+      ConcreteSucc newSucc(newMap);
+      return newSucc;
+    }
+  
     inline bool operator==(ConcreteSucc& that) {
       auto pred = [] (decltype(*m.begin()) a, decltype(*m.begin()) b) {
         return *a.first == *b.first && *a.second == *b.second;
@@ -133,6 +187,9 @@ namespace ConcreteAAM {
   private:
     SuccMap m;
   };
+  
+  typedef ConcreteSucc ConcretePred;
+*/
   
   /******** Static initialization ********/
   
