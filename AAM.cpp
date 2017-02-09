@@ -127,6 +127,8 @@ namespace {
       assert(*c2 == *c2);
       assert(!(*c1 == *c2));
       
+      shared_ptr<FramePtr> sp1_copy = c1->getFramePtr();
+      assert(sp1.get() == sp1_copy.get());
       
     }
     

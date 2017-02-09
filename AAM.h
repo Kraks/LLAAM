@@ -250,6 +250,7 @@ namespace AAM {
     Instruction* inst;
     std::shared_ptr<FramePtr> framePtr;
     std::shared_ptr<StackPtr> stackPtr;
+    
   public:
     Cont(var lhs, Instruction* inst, std::shared_ptr<FramePtr> framePtr, std::shared_ptr<StackPtr> stackPtr)
       : AbstractValue(KContV), lhs(lhs), inst(inst), framePtr(framePtr), stackPtr(stackPtr) {}
@@ -257,6 +258,11 @@ namespace AAM {
     static bool classof(const AbstractValue* v) {
       return v->getKind() == KContV;
     }
+    
+    var getLhs() { return lhs; }
+    Instruction* getInst() { return inst; }
+    std::shared_ptr<FramePtr> getFramePtr() { return framePtr; }
+    std::shared_ptr<StackPtr> getStackPtr() { return stackPtr; }
 
   protected:
     virtual bool equalTo(const AbstractValue& that) const override {
