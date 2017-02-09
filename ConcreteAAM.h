@@ -1,7 +1,10 @@
+//
+// Created by WeiGuannan on 08/02/2017.
+//
 #include "AAM.h"
 
-#ifndef LLVM_ConcreteAAM_H
-#define LLVM_ConcreteAAM_H
+#ifndef LLVM_CONCRETEAAM_H
+#define LLVM_CONCRETEAAM_H
 
 namespace ConcreteAAM {
   using namespace AAM;
@@ -118,4 +121,4 @@ namespace ConcreteAAM {
   unsigned long long ConcreteStackPtr::id = 0;
 }
 
-#endif //LLVM_ConcreteAAM_H
+#endif //LLVM_CONCRETEAAM_H

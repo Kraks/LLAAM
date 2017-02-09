@@ -355,28 +355,4 @@ namespace AAM {
   
 }
 
-#include "ConcreteAAM.h"
-
-namespace AbstractAAM {
-  using namespace AAM;
-
-  /*
-  class ZeroCFAHeapAddr : public HeapAddr {
-    //TODO
-  };
-
-  class ZeroCFAStackPtr : public StackPtr {
-    //TODO
-  };
-
-  typedef ZeroCFAStackPtr ZeroCFAFramePtr;
-
-  class AbstractStore : public Store {
-    std::set<AbstractValue> s;
-
-  };
-  */
-}
-
-
 #endif //LLVM_AAM_H
