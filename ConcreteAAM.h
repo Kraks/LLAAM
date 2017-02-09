@@ -73,33 +73,42 @@ namespace ConcreteAAM {
   typedef ConcreteStackPtr ConcreteFramePtr;
   
   template<class K, class V, class Less>
-  class GeneralStore {
+  class Store {
   public:
     typedef std::shared_ptr<K> Key;
     typedef std::shared_ptr<V> Val;
     typedef std::map<Key, Val, Less> StoreMap;
     
-    GeneralStore() {};
-    GeneralStore(StoreMap m) : m(m) {};
-    virtual size_t size() const {
+    Store() {};
+    Store(StoreMap m) : m(m) {};
+    
+    size_t size() const {
       return m.size();
     }
     
-    Optional<GeneralStore::Val> lookup(GeneralStore::Key key) {
+    Optional<Store<K,V,Less>::Val> lookup(Store<K,V,Less>::Key key) {
       auto it = m.find(key);
       if (it != m.end()) return it->second;
       return None;
     }
     
-    /* Immutable update */
-    GeneralStore<K,V,Less> update(GeneralStore::Key key, GeneralStore::Val val) {
+    // Immutable update
+    Store<K,V,Less> update(Store<K,V,Less>::Key key, Store<K,V,Less>::Val val) {
       auto newMap = m;
       newMap[key] = val;
-      GeneralStore<K,V,Less> newStore(newMap);
+      Store<K,V,Less> newStore(newMap);
       return newStore;
     }
     
-    inline bool operator==(GeneralStore& that) {
+    // Immutable remove
+    Store<K,V,Less> remove(Store<K,V,Less>::Key key) {
+      auto newMap = m;
+      newMap.erase(key);
+      Store<K,V,Less> newStore(newMap);
+      return newStore;
+    };
+    
+    inline bool operator==(Store<K,V,Less>& that) {
       auto pred = [] (decltype(*m.begin()) a, decltype(*m.begin()) b) {
         return *a.first == *b.first && *a.second == *b.second;
       };
@@ -111,85 +120,11 @@ namespace ConcreteAAM {
     StoreMap m;
   };
   
-  typedef GeneralStore<Location, AbstractValue, LocationLess> ConcreteStore;
-  typedef GeneralStore<Location, Location, LocationLess> ConcreteSucc;
-  typedef GeneralStore<Location, Location, LocationLess> ConcretePred;
+  typedef Store<Location, AbstractValue, LocationLess> ConcreteStore;
   
-  /*
-  struct ConcreteStore : public Store {
-  public:
-    typedef std::shared_ptr<Location> Key;
-    typedef std::shared_ptr<AbstractValue> Val;
-    typedef std::map<Key, Val, LocationLess> StoreMap;
-    
-    ConcreteStore() {};
-    ConcreteStore(StoreMap m) : m(m) {};
-    virtual size_t size() const {
-      return m.size();
-    }
-    
-    Optional<ConcreteStore::Val> lookup(ConcreteStore::Key loc) {
-      auto it = m.find(loc);
-      if (it != m.end()) return it->second;
-      return None;
-    }
-    
-    // Immutable update
-    ConcreteStore update(ConcreteStore::Key loc, ConcreteStore::Val val) {
-      auto newMap = m;
-      newMap[loc] = val;
-      ConcreteStore newStore(newMap);
-      return newStore;
-    }
-    
-    inline bool operator==(ConcreteStore& that) {
-      auto pred = [] (decltype(*m.begin()) a, decltype(*m.begin()) b) {
-        return *a.first == *b.first && *a.second == *b.second;
-      };
-      return this->m.size() == that.m.size() &&
-             std::equal(this->m.begin(), this->m.end(), that.m.begin(), pred);
-    }
-    
-  private:
-    StoreMap m;
-  };
+  typedef Store<Location, Location, LocationLess> ConcreteSucc;
   
-  class ConcreteSucc : public Succ {
-  public:
-    typedef std::shared_ptr<Location> Key;
-    typedef std::shared_ptr<Location> Val;
-    typedef std::map<Key, Val, LocationLess> SuccMap;
-    
-    ConcreteSucc(SuccMap m) : m(m) {}
-    
-    Optional<ConcreteSucc::Val> lookup(ConcreteSucc::Key loc) {
-      auto it = m.find(loc);
-      if (it != m.end()) return it->second;
-      return None;
-    }
-  
-    // Immutable update
-    ConcreteSucc update(ConcreteSucc::Key loc, ConcreteSucc::Val val) {
-      auto newMap = m;
-      newMap[loc] = val;
-      ConcreteSucc newSucc(newMap);
-      return newSucc;
-    }
-  
-    inline bool operator==(ConcreteSucc& that) {
-      auto pred = [] (decltype(*m.begin()) a, decltype(*m.begin()) b) {
-        return *a.first == *b.first && *a.second == *b.second;
-      };
-      return this->m.size() == that.m.size() &&
-             std::equal(this->m.begin(), this->m.end(), that.m.begin(), pred);
-    }
-    
-  private:
-    SuccMap m;
-  };
-  
-  typedef ConcreteSucc ConcretePred;
-*/
+  typedef Store<Location, Location, LocationLess> ConcretePred;
   
   /******** Static initialization ********/
   

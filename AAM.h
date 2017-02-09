@@ -347,13 +347,6 @@ namespace AAM {
 
   enum AbstractNat { Zero, One, Inf };
 
-  class Store {
-    virtual size_t size() const = 0;
-  };
-  
-  class Succ {};
-  typedef Succ Pred;
-  
   class Measure {};
   class Conf {};
 

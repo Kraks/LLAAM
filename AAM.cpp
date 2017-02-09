@@ -118,12 +118,21 @@ namespace {
         ConcreteStore store4 = store.update(sp1, pv);
         someV = store4.lookup(sp1).getValue();
         assert(store4.size() == 5);
+        assert(store.size() == 5);
         //errs() << "classof: " << AbstractValue::KindToString(someV->getKind()) << "\n";
         assert(isa<PrimValue>(*someV));
         
         someV = store.lookup(sp1).getValue();
         assert(isa<FuncValue>(*someV));
       }
+      
+      ConcreteStore store5 = store.remove(baddr1);
+      assert(store5.size() == 4);
+      ConcreteStore store6 = store.remove(baddr2);
+      assert(store6.size() == 4);
+      ConcreteStore store7 = store5.update(baddr1, pv);
+      shared_ptr<AbstractValue> another_pv = store7.lookup(baddr2).getValue();
+      assert(isa<PrimValue>(*another_pv));
       
       Instruction* i1 = getEntry(*mainFunc);
       Instruction* i2 = getNextInst(i1);
