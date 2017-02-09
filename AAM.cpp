@@ -68,15 +68,22 @@ namespace {
       assert(!(*baddr1.get() == *sp1.get()));
       assert(!(*baddr1.get() == *hp2.get()));
       
+      shared_ptr<LocationValue> lv1 = make_shared<LocationValue>(sp1);
+      shared_ptr<LocationValue> lv2 = make_shared<LocationValue>(sp2);
+      
       //errs() << "stack ptrs eq: " << (sp1 == sp2) << "\n"; // false
-      ConcreteStore store({{sp1, f1}, {sp2, f2}, {hp1, pv}, {hp2, pv}});
+      ConcreteStore store({{sp1, f1}, {sp2, f2}, {hp1, pv}, {hp2, pv}, {baddr1, lv1}, {baddr2, lv2}});
       assert(store == store);
-      assert(store.size() == 4);
+      assert(store.size() == 5);
       ConcreteStore store2({{sp1, f1}});
       assert(store2.size() == 1);
       ConcreteStore store3({{sp1, f2}});
       assert(store3.size() == 1);
       assert(store2 == store3);
+      
+      shared_ptr<AbstractValue> av = store.lookup(baddr2).getValue();
+      assert(av == lv1);
+      assert(*av == *lv1);
       
       shared_ptr<LocalBindAddr> baddr3 = make_shared<LocalBindAddr>("y", sp3);
       assert(!store.lookup(baddr3).hasValue());
@@ -110,7 +117,7 @@ namespace {
       for (int i = 0; i <= 2000; i++) {
         ConcreteStore store4 = store.update(sp1, pv);
         someV = store4.lookup(sp1).getValue();
-        assert(store4.size() == 4);
+        assert(store4.size() == 5);
         //errs() << "classof: " << AbstractValue::KindToString(someV->getKind()) << "\n";
         assert(isa<PrimValue>(*someV));
         
