@@ -9,7 +9,7 @@
 #include "llvm/IR/SymbolTableListTraits.h"
 #include "llvm/Support/raw_ostream.h"
 
-#include "AAM.h"
+#include "ConcreteAAM.h"
 #include "Utils.h"
 
 using namespace llvm;
