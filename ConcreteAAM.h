@@ -78,10 +78,10 @@ namespace ConcreteAAM {
   
   typedef Store<Location, Location, LocationLess> ConcretePred;
   
-  
   typedef bool DummyMeasure;
   typedef Conf<ConcreteStore, ConcreteSucc, ConcretePred, DummyMeasure> ConcreteConf;
   
+  typedef State<Stmt, FramePtr, ConcreteConf, StackPtr> ConcreteState;
   
   /******** Static initialization ********/
   

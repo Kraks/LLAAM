@@ -149,11 +149,24 @@ namespace {
     
     static void testLLVM(Module& M) {
       Function* mainFunc = M.getFunction("main");
-      Instruction* inst = getEntry(*mainFunc);
+      Instruction* i1 = getEntry(*mainFunc);
+      Instruction* i2 = getNextInst(i1);
+      Instruction* i3 = getNextInst(i2);
+  
+      assert(i1 == i1);
+      //assert(*i1 == *i1); //looks like there is no operator== for llvm::Instruction
+      assert(i1 != i2);
+      
+      shared_ptr<Stmt> s1 = make_shared<Stmt>(i1);
+      shared_ptr<Stmt> s2 = make_shared<Stmt>(i2);
+      shared_ptr<Stmt> s3 = make_shared<Stmt>(i3);
+      assert(*s1 == *s1);
+      assert(!(*s1 == *s2));
     }
 
     bool runOnModule(Module& M) override {
       testStore(M);
+      testLLVM(M);
       return false;
     }
 

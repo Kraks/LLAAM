@@ -22,7 +22,6 @@
 using namespace llvm;
 
 /* TODO
- * test locationvalue
  * copy constructor for abs location
  */
 
@@ -223,7 +222,7 @@ namespace AAM {
         default: return "Unknown";
       }
     }
-    
+
     ValKind getKind() const {
       return kind;
     }
@@ -431,10 +430,44 @@ namespace AAM {
     Optional<MeasurePtrType> measure;
   };
   
+  class Stmt {
+  private:
+    Instruction* inst;
+    
+  public:
+    Stmt(Instruction* inst): inst(inst) {}
+    
+    inline bool operator==(Stmt& that) {
+      return this->inst == that.inst;
+    }
+  };
+  
+  template<class C, class E, class S, class K>
+  class State {
+  public:
+    typedef std::shared_ptr<C> CPtrType;
+    typedef std::shared_ptr<E> EPtrType;
+    typedef std::shared_ptr<S> SPtrType;
+    typedef std::shared_ptr<K> KPtrType;
+    
+    State(CPtrType c, EPtrType e, SPtrType s, KPtrType k)
+      : cPtr(c), ePtr(e), sPtr(s), kPtr(k) {}
+    
+    inline bool operator==(State<C,E,S,K>& that) {
+      return *this->cPtr == *that.cPtr &&
+             *this->ePtr == *that.ePtr &&
+             *this->sPtr == *that.sPtr &&
+             *this->kPtr == *that.kPtr;
+    }
+    
+  private:
+    CPtrType cPtr;
+    EPtrType ePtr;
+    SPtrType sPtr;
+    KPtrType kPtr;
+  };
+  
   class Measure {};
-  
-  struct State {};
-  
 }
 
 #endif //LLVM_AAM_H
