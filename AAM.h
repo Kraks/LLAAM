@@ -346,10 +346,93 @@ namespace AAM {
   };
 
   enum AbstractNat { Zero, One, Inf };
-
+  
+  template<class K, class V, class Less>
+  class Store {
+  public:
+    typedef std::shared_ptr<K> Key;
+    typedef std::shared_ptr<V> Val;
+    typedef std::map<Key, Val, Less> StoreMap;
+    
+    Store() {};
+    Store(StoreMap m) : m(m) {};
+    
+    size_t size() const {
+      return m.size();
+    }
+    
+    Optional<Store<K,V,Less>::Val> lookup(Store<K,V,Less>::Key key) {
+      auto it = m.find(key);
+      if (it != m.end()) return it->second;
+      return None;
+    }
+    
+    // Immutable update
+    Store<K,V,Less> update(Store<K,V,Less>::Key key, Store<K,V,Less>::Val val) {
+      auto newMap = m;
+      newMap[key] = val;
+      Store<K,V,Less> newStore(newMap);
+      return newStore;
+    }
+    
+    // Immutable remove
+    Store<K,V,Less> remove(Store<K,V,Less>::Key key) {
+      auto newMap = m;
+      newMap.erase(key);
+      Store<K,V,Less> newStore(newMap);
+      return newStore;
+    };
+    
+    inline bool operator==(Store<K,V,Less>& that) {
+      auto pred = [] (decltype(*m.begin()) a, decltype(*m.begin()) b) {
+        return *a.first == *b.first && *a.second == *b.second;
+      };
+      return this->m.size() == that.m.size() &&
+             std::equal(this->m.begin(), this->m.end(), that.m.begin(), pred);
+    }
+  
+  private:
+    StoreMap m;
+  };
+  
+  template<class StoreType, class SuccType, class PredType, class MeasureType>
+  class Conf {
+  public:
+    typedef std::shared_ptr<StoreType> StorePtrType;
+    typedef std::shared_ptr<SuccType>  SuccPtrType;
+    typedef std::shared_ptr<PredType>  PredPtrType;
+    typedef std::shared_ptr<MeasureType> MeasurePtrType;
+    
+    Conf(StorePtrType store, SuccPtrType succ, PredPtrType pred)
+      : store(store), succ(succ), pred(pred), measure(None) {}
+    
+    Conf(StorePtrType store, SuccPtrType succ, PredPtrType pred, MeasurePtrType measure)
+      : store(store), succ(succ), pred(pred), measure(measure) {}
+    
+    StorePtrType getStore() { return store; }
+    SuccPtrType getSucc() { return succ; }
+    PredPtrType getPred() { return pred; }
+    MeasurePtrType getMeasure() {
+      assert(measure.hasValue());
+      return measure.getValue();
+    }
+    
+    inline bool operator==(Conf<StoreType, SuccType, PredType, MeasureType>& that) {
+      return *this->store == *that.store &&
+             *this->succ == *that.succ &&
+             *this->pred == *that.pred &&
+             *this->measure.getValue() == *that.measure.getValue();
+    }
+    
+  private:
+    StorePtrType store;
+    SuccPtrType  succ;
+    PredPtrType  pred;
+    Optional<MeasurePtrType> measure;
+  };
+  
   class Measure {};
-  class Conf {};
-
+  
   struct State {};
   
 }
