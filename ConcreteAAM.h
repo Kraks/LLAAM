@@ -87,6 +87,10 @@ namespace ConcreteAAM {
   
   unsigned long long ConcreteHeapAddr::id = 0;
   unsigned long long ConcreteStackPtr::id = 0;
+  
+  /********  Auxiliary functions  ********/
+  
+
 }
 
 #endif //LLVM_CONCRETEAAM_H

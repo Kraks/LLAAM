@@ -149,6 +149,8 @@ namespace {
     
     static void testLLVM(Module& M) {
       Function* mainFunc = M.getFunction("main");
+      printAllInstructions(*mainFunc);
+      
       Instruction* i1 = getEntry(*mainFunc);
       Instruction* i2 = getNextInst(i1);
       Instruction* i3 = getNextInst(i2);

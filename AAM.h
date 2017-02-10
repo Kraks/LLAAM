@@ -453,6 +453,11 @@ namespace AAM {
     State(CPtrType c, EPtrType e, SPtrType s, KPtrType k)
       : cPtr(c), ePtr(e), sPtr(s), kPtr(k) {}
     
+    CPtrType getControl() { return cPtr; }
+    EPtrType getEnv() { return ePtr; }
+    SPtrType getStore() { return sPtr; }
+    KPtrType getCont() { return kPtr; }
+    
     inline bool operator==(State<C,E,S,K>& that) {
       return *this->cPtr == *that.cPtr &&
              *this->ePtr == *that.ePtr &&

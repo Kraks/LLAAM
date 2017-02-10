@@ -16,7 +16,9 @@
 using namespace llvm;
 
 void printModuleInfo(Module& M);
-void printInst(Function& F);
+void printInst(Instruction* inst);
+void printAllInstructions(Function& F);
+
 Instruction* getEntry(Function& F);
 Instruction* getNextInst(Instruction* inst);
 

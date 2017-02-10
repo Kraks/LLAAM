@@ -14,6 +14,7 @@ void printModuleInfo(Module& M) {
   }
 }
 
+/*
 void printInst(Function& F) {
   int idx = 0;
   errs() << "function: " << F.getName() << "\n";
@@ -26,10 +27,23 @@ void printInst(Function& F) {
     errs() << "\n";
   }
 }
+*/
+void printInst(Instruction* inst) {
+  inst->print(errs(), false);
+  errs() << "\n";
+}
+
+void printAllInstructions(Function& F) {
+  Instruction* inst = getEntry(F);
+  while (inst) {
+    printInst(inst);
+    inst = getNextInst(inst);
+  }
+}
 
 Instruction* getEntry(Function& F) {
   inst_iterator beg = inst_begin(F);
-  Instruction* inst =static_cast<Instruction*>(&*beg);
+  Instruction* inst = static_cast<Instruction*>(&*beg);
   return inst;
 }
 
