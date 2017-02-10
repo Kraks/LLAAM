@@ -176,7 +176,9 @@ namespace {
       assert(!(*s1 == *s2));
       
       std::shared_ptr<FramePtr> fp = std::make_shared<ConcreteFramePtr>();
-      auto store = getInitStore(M, fp);
+      auto store = getInitStore(M);
+      
+      
     }
 
     bool runOnModule(Module& M) override {
