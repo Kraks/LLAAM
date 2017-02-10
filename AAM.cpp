@@ -58,10 +58,10 @@ namespace {
       
       std::shared_ptr<ConcreteStackPtr> sp3 = std::make_shared<ConcreteStackPtr>();
       
-      std::shared_ptr<LocalBindAddr> baddr1 = std::make_shared<LocalBindAddr>("x", sp3);
-      std::shared_ptr<LocalBindAddr> baddr2 = std::make_shared<LocalBindAddr>("x", sp3);
+      std::shared_ptr<BindAddr> baddr1 = std::make_shared<BindAddr>("x", sp3);
+      std::shared_ptr<BindAddr> baddr2 = std::make_shared<BindAddr>("x", sp3);
+      assert(isa<BAddr>(*baddr1.get()));
       assert(isa<BindAddr>(*baddr1.get()));
-      assert(isa<LocalBindAddr>(*baddr1.get()));
       assert(*baddr1.get() == *baddr1.get());
       assert(*baddr1 == *baddr1);
       assert(*baddr1.get() == *baddr2.get());
@@ -85,7 +85,16 @@ namespace {
       assert(av == lv1);
       assert(*av == *lv1);
       
-      shared_ptr<LocalBindAddr> baddr3 = make_shared<LocalBindAddr>("y", sp3);
+      // copy store
+      ConcreteStore another_store = store;
+      another_store.inplaceRemove(sp1);
+      assert(another_store.size() == 4);
+      
+      // empty store
+      std::shared_ptr<ConcreteStore> mt_store = std::make_shared<ConcreteStore>();
+      assert(mt_store->size() == 0);
+      
+      shared_ptr<BindAddr> baddr3 = make_shared<BindAddr>("y", sp3);
       assert(!store.lookup(baddr3).hasValue());
       
       shared_ptr<AbstractValue> v1 = store.lookup(sp1).getValue();
@@ -135,7 +144,7 @@ namespace {
       assert(isa<PrimValue>(*another_pv));
       
       Instruction* i1 = getEntry(*mainFunc);
-      Instruction* i2 = getNextInst(i1);
+      Instruction* i2 = getSyntacticNextInst(i1);
       
       shared_ptr<Cont> c1 = make_shared<Cont>("x", i1, sp1, sp2);
       assert(*c1 == *c1);
@@ -149,11 +158,12 @@ namespace {
     
     static void testLLVM(Module& M) {
       Function* mainFunc = M.getFunction("main");
-      printAllInstructions(*mainFunc);
+      printInstructions(*mainFunc);
+      BasicBlock& entry = mainFunc->getEntryBlock();
       
       Instruction* i1 = getEntry(*mainFunc);
-      Instruction* i2 = getNextInst(i1);
-      Instruction* i3 = getNextInst(i2);
+      Instruction* i2 = getSyntacticNextInst(i1);
+      Instruction* i3 = getSyntacticNextInst(i2);
   
       assert(i1 == i1);
       //assert(*i1 == *i1); //looks like there is no operator== for llvm::Instruction
@@ -164,6 +174,9 @@ namespace {
       shared_ptr<Stmt> s3 = make_shared<Stmt>(i3);
       assert(*s1 == *s1);
       assert(!(*s1 == *s2));
+      
+      std::shared_ptr<FramePtr> fp = std::make_shared<ConcreteFramePtr>();
+      auto store = getInitStore(M, fp);
     }
 
     bool runOnModule(Module& M) override {

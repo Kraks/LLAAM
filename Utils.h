@@ -13,13 +13,20 @@
 #include "llvm/IR/SymbolTableListTraits.h"
 #include "llvm/Support/raw_ostream.h"
 
+#include <string>
+
 using namespace llvm;
 
 void printModuleInfo(Module& M);
+
 void printInst(Instruction* inst);
-void printAllInstructions(Function& F);
+
+void printInstructions(Function& F);
+void printInstructions(BasicBlock& B);
 
 Instruction* getEntry(Function& F);
-Instruction* getNextInst(Instruction* inst);
+Instruction* getEntry(BasicBlock& B);
+
+Instruction* getSyntacticNextInst(Instruction* inst);
 
 #endif //LLVM_UTILS_H

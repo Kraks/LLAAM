@@ -24,6 +24,8 @@ namespace AbstractAAM {
     std::set<AbstractValue> s;
 
   };
+   
+  class Measure {};
   */
 }
 

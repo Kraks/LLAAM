@@ -31,7 +31,7 @@ namespace AAM {
   /* Location = HeapAddr
    *          | StackPtr
    *          | FramePtr
-   *          | BindAddr
+   *          | BAddr
    */
   class Location {
   public:
@@ -46,9 +46,9 @@ namespace AAM {
         KZeroCFAStackPtr,
       KStackPtrEnd,
       
-      KBindAddr,
-        KLocalBindAddr,
-      KBindAddrEnd
+      KBAddr,
+        KBindAddr,
+      KBAddrEnd
     };
   
     static std::string KindToString(LocationKind v) {
@@ -59,8 +59,8 @@ namespace AAM {
         case KStackPtr: return "StackPtr";
         case KConcreteStackPtr: return "ConcreteStackPtr";
         case KZeroCFAStackPtr: return "0CFAStackPtr";
+        case KBAddr: return "BAddr";
         case KBindAddr: return "BindAddr";
-        case KLocalBindAddr: return "LocalBindAddr";
         default: return "Unknown";
       }
     }
@@ -100,6 +100,8 @@ namespace AAM {
   struct LocationLess {
     bool operator()(const std::shared_ptr<Location>& a, const std::shared_ptr<Location>& b) const {
       //errs() << "a hash: " << a->hashValue() << " b hash: " << b->hashValue() << "\n";
+      // TODO: using memory location?
+      // TODO: using equality?
       return a->hashValue() < b->hashValue();
     }
   };
@@ -154,37 +156,37 @@ namespace AAM {
 
   typedef StackPtr FramePtr;
 
-  class BindAddr : public Location {
+  class BAddr : public Location {
   public:
     static bool classof(const Location* loc) {
       LocationKind k = loc->getKind();
-      return k >= KBindAddr && k <= KBindAddrEnd;
+      return k >= KBAddr && k <= KBAddrEnd;
     }
   
     virtual size_t hashValue() const override {
-      return hash_value("BindAddr");
+      return hash_value("BAddr");
     }
 
   protected:
-    BindAddr(LocationKind kind) : Location(kind) {}
+    BAddr(LocationKind kind) : Location(kind) {}
     
     virtual bool equalTo(const Location& that) const override {
-      errs() << "should not call BindAddr::equalTo\n";
-      //assert(false && "should not call BindAddr::equalTo");
+      assert(false && "should not call BAddr::equalTo");
+      //errs() << "should not call BAddr::equalTo\n";
       return false;
     }
   };
 
-  class LocalBindAddr : public BindAddr {
+  class BindAddr : public BAddr {
   private:
     var name;
     std::shared_ptr<FramePtr> fp;
     
   public:
-    LocalBindAddr(var name, std::shared_ptr<FramePtr> fp) : BindAddr(KLocalBindAddr), name(name), fp(fp) {};
+    BindAddr(var name, std::shared_ptr<FramePtr> fp) : BAddr(KBindAddr), name(name), fp(fp) {};
   
     static bool classof(const Location* loc) {
-      return loc->getKind() == KLocalBindAddr;
+      return loc->getKind() == KBindAddr;
     }
   
     virtual size_t hashValue() const override {
@@ -196,9 +198,9 @@ namespace AAM {
     
   protected:
     virtual bool equalTo(const Location& that) const override {
-      if (!isa<LocalBindAddr>(&that))
+      if (!isa<BindAddr>(&that))
         return false;
-      auto* newThat = dyn_cast<LocalBindAddr>(&that);
+      auto* newThat = dyn_cast<BindAddr>(&that);
       return newThat->name == this->name &&
              *newThat->fp == *this->fp;
     }
@@ -211,7 +213,14 @@ namespace AAM {
    */
   class AbstractValue {
   public:
-    enum ValKind { KContV, KLocationV, KFuncV, KPrimV };
+    enum ValKind {
+      KContV,
+      KLocationV,
+      KFuncV,
+      KPrimV,
+        KIntV,
+      KPrimVEnd
+    };
     
     static std::string KindToString(ValKind v) {
       switch (v) {
@@ -219,6 +228,7 @@ namespace AAM {
         case KLocationV: return "LocationV";
         case KFuncV: return "FuncV";
         case KPrimV: return "PrimV";
+        case KIntV: return "IntV";
         default: return "Unknown";
       }
     }
@@ -329,18 +339,43 @@ namespace AAM {
       return this->fun == newThat->fun;
     }
   };
-
+  
+  // Represent all primitive values
+  // TODO: refactor as single instance
   class PrimValue : public AbstractValue {
   public:
     PrimValue() : AbstractValue(KPrimV) {}
+    PrimValue(ValKind k) : AbstractValue(k) {}
     
     static bool classof(const AbstractValue* v) {
-      return v->getKind() == KPrimV;
+      return v->getKind() >= KPrimV &&
+             v->getKind() <= KPrimVEnd;
     }
 
   protected:
     virtual bool equalTo(const AbstractValue& that) const override {
       return isa<PrimValue>(&that);
+    }
+  };
+  
+  // TODO: test this
+  class IntValue : public PrimValue {
+  private:
+    APInt val;
+    
+  public:
+    IntValue(APInt val) : PrimValue(KIntV), val(val) {}
+    
+    static bool classof(const AbstractValue* v) {
+      return v->getKind() == KIntV;
+    }
+
+  protected:
+    virtual bool equalTo(const AbstractValue& that) const override {
+      if (!isa<IntValue>(&that))
+        return false;
+      auto* newThat = dyn_cast<IntValue>(&that);
+      return val.eq(newThat->val);
     }
   };
 
@@ -374,12 +409,22 @@ namespace AAM {
       return newStore;
     }
     
+    Store<K, V, Less>& inplaceUpdate(Store<K,V,Less>::Key key, Store<K,V,Less>::Val val) {
+      m[key] = val;
+      return *this;
+    }
+    
     // Immutable remove
     Store<K,V,Less> remove(Store<K,V,Less>::Key key) {
       auto newMap = m;
       newMap.erase(key);
       Store<K,V,Less> newStore(newMap);
       return newStore;
+    };
+    
+    Store<K,V,Less>& inplaceRemove(Store<K,V,Less>::Key key) {
+      m.erase(key);
+      return *this;
     };
     
     inline bool operator==(Store<K,V,Less>& that) {
@@ -472,7 +517,6 @@ namespace AAM {
     KPtrType kPtr;
   };
   
-  class Measure {};
 }
 
 #endif //LLVM_AAM_H

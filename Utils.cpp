@@ -33,12 +33,26 @@ void printInst(Instruction* inst) {
   errs() << "\n";
 }
 
-void printAllInstructions(Function& F) {
+void printInstructions(Function& F) {
   Instruction* inst = getEntry(F);
   while (inst) {
     printInst(inst);
-    inst = getNextInst(inst);
+    inst = getSyntacticNextInst(inst);
   }
+}
+
+void printInstructions(BasicBlock& B) {
+  Instruction* inst = getEntry(B);
+  while (inst) {
+    printInst(inst);
+    inst = getSyntacticNextInst(inst);
+  }
+}
+
+Instruction* getEntry(BasicBlock& B) {
+  auto& insts = B.getInstList();
+  Instruction* inst = &insts.front();
+  return inst;
 }
 
 Instruction* getEntry(Function& F) {
@@ -47,6 +61,11 @@ Instruction* getEntry(Function& F) {
   return inst;
 }
 
-Instruction* getNextInst(Instruction* inst) {
+Instruction* getSyntacticNextInst(Instruction* inst) {
   return inst->getNextNode();
 }
+
+Instruction* getSemanticNextInst(Instruction* inst) {
+  
+}
+
