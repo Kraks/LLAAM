@@ -19,8 +19,6 @@ using namespace llvm;
 
 void printModuleInfo(Module& M);
 
-void printInst(Instruction* inst);
-
 void printInstructions(Function& F);
 void printInstructions(BasicBlock& B);
 
@@ -28,5 +26,14 @@ Instruction* getEntry(Function& F);
 Instruction* getEntry(BasicBlock& B);
 
 Instruction* getSyntacticNextInst(Instruction* inst);
+
+template<typename F, typename Lam>
+void forEachInst(F& f, Lam lam) {
+  Instruction* inst = getEntry(f);
+  while (inst) {
+    lam(inst);
+    inst = getSyntacticNextInst(inst);
+  }
+}
 
 #endif //LLVM_UTILS_H

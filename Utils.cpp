@@ -28,25 +28,18 @@ void printInst(Function& F) {
   }
 }
 */
-void printInst(Instruction* inst) {
+
+static auto printInst = [] (Instruction* inst) {
   inst->print(errs(), false);
   errs() << "\n";
-}
+};
 
 void printInstructions(Function& F) {
-  Instruction* inst = getEntry(F);
-  while (inst) {
-    printInst(inst);
-    inst = getSyntacticNextInst(inst);
-  }
+  forEachInst(F, printInst);
 }
 
 void printInstructions(BasicBlock& B) {
-  Instruction* inst = getEntry(B);
-  while (inst) {
-    printInst(inst);
-    inst = getSyntacticNextInst(inst);
-  }
+  forEachInst(B, printInst);
 }
 
 Instruction* getEntry(BasicBlock& B) {
