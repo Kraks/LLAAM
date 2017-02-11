@@ -38,7 +38,8 @@ namespace AAM {
   typedef std::string strvar;
   typedef Value* var;
 
-  /* Location = HeapAddr
+  /**
+   * Location = HeapAddr
    *          | StackPtr
    *          | FramePtr
    *          | BAddr
@@ -111,7 +112,7 @@ namespace AAM {
     bool operator()(const std::shared_ptr<Location>& a, const std::shared_ptr<Location>& b) const {
       //errs() << "a hash: " << a->hashValue() << " b hash: " << b->hashValue() << "\n";
       // TODO: using memory location?
-      // TODO: using equality?
+      // TODO: using equality if hash values collided?
       return a->hashValue() < b->hashValue();
     }
   };
@@ -220,7 +221,8 @@ namespace AAM {
     }
   };
   
-  /* AbstractValue = Cont
+  /**
+   * AbstractValue = Cont
    *               | LocationValue
    *               | FuncValue
    *               | PrimValue
