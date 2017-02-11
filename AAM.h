@@ -26,8 +26,17 @@ using namespace llvm;
  */
 
 namespace AAM {
-  typedef std::string var;
-  //typedef Value* var;
+  /**
+   * `strvar` and `var` will be used in `BindAddr` and `Cont`.
+   * the reason there are two variable name representations is in LLVM,
+   * some instructions (or variables) are unnamed. We can also use the
+   * address of instruction to distinguish them. The name like `%n`
+   * is generated when we dump the IR from memory to file.
+   * For convenience of testing, we can use string representation,
+   * while when analyzing real IR program, we use Value* instead.
+   */
+  typedef std::string strvar;
+  typedef Value* var;
 
   /* Location = HeapAddr
    *          | StackPtr
@@ -180,11 +189,13 @@ namespace AAM {
 
   class BindAddr : public BAddr {
   private:
+    strvar strname;
     var name;
     std::shared_ptr<FramePtr> fp;
     
   public:
-    BindAddr(var name, std::shared_ptr<FramePtr> fp) : BAddr(KBindAddr), name(name), fp(fp) {};
+    BindAddr(strvar strname, std::shared_ptr<FramePtr> fp) : BAddr(KBindAddr), strname(strname), name(nullptr), fp(fp) {};
+    BindAddr(var name, std::shared_ptr<FramePtr> fp) : BAddr(KBindAddr), strname(""), name(name), fp(fp) {};
   
     static bool classof(const Location* loc) {
       return loc->getKind() == KBindAddr;
@@ -192,6 +203,7 @@ namespace AAM {
   
     virtual size_t hashValue() const override {
       size_t seed = 0;
+      seed = hash_combine(seed, hash_value(strname));
       seed = hash_combine(seed, hash_value(name));
       seed = hash_combine(seed, fp->hashValue());
       return seed;
@@ -202,7 +214,8 @@ namespace AAM {
       if (!isa<BindAddr>(&that))
         return false;
       auto* newThat = dyn_cast<BindAddr>(&that);
-      return newThat->name == this->name &&
+      return newThat->strname == this->strname &&
+             newThat->name == this->name &&
              *newThat->fp == *this->fp;
     }
   };
@@ -256,19 +269,24 @@ namespace AAM {
 
   class Cont : public AbstractValue {
   private:
+    strvar _lhs;
     var lhs;
     Instruction* inst;
     std::shared_ptr<FramePtr> framePtr;
     std::shared_ptr<StackPtr> stackPtr;
     
   public:
+    Cont(strvar _lhs, Instruction* inst, std::shared_ptr<FramePtr> framePtr, std::shared_ptr<StackPtr> stackPtr)
+      : AbstractValue(KContV), _lhs(_lhs), lhs(nullptr), inst(inst), framePtr(framePtr), stackPtr(stackPtr) {}
+    
     Cont(var lhs, Instruction* inst, std::shared_ptr<FramePtr> framePtr, std::shared_ptr<StackPtr> stackPtr)
-      : AbstractValue(KContV), lhs(lhs), inst(inst), framePtr(framePtr), stackPtr(stackPtr) {}
+      : AbstractValue(KContV), _lhs(""), lhs(lhs), inst(inst), framePtr(framePtr), stackPtr(stackPtr) {}
     
     static bool classof(const AbstractValue* v) {
       return v->getKind() == KContV;
     }
     
+    strvar getStrLhs() { return _lhs; }
     var getLhs() { return lhs; }
     Instruction* getInst() { return inst; }
     std::shared_ptr<FramePtr> getFramePtr() { return framePtr; }
@@ -279,7 +297,8 @@ namespace AAM {
       if (!isa<Cont>(&that))
         return false;
       auto* newThat = dyn_cast<Cont>(&that);
-      return this->lhs == newThat->lhs &&
+      return this->_lhs == newThat->_lhs &&
+             this->lhs == newThat->lhs &&
              this->inst == newThat->inst && // TODO: this->inst==that->inst or *this->inst==*that->inst ?
              *this->framePtr == *newThat->framePtr &&
              *this->stackPtr == *newThat->stackPtr;
