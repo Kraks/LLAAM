@@ -5,6 +5,7 @@
 #include "llvm/IR/Module.h"
 #include "llvm/IR/Function.h"
 #include "llvm/IR/Instruction.h"
+#include "llvm/IR/Instructions.h"
 #include "llvm/IR/InstIterator.h"
 #include "llvm/IR/SymbolTableListTraits.h"
 #include "llvm/Support/raw_ostream.h"
@@ -178,7 +179,28 @@ namespace {
       std::shared_ptr<FramePtr> fp = std::make_shared<ConcreteFramePtr>();
       auto store = getInitStore(M);
       
+      auto& args = mainFunc->getArgumentList();
+      auto& argc = args.front();
+      auto* argv = args.getNext(&argc);
+      errs() << "argc: " << &argc << "\n";
+      long long llarg = reinterpret_cast<long long>(&argc);
+      errs() << "argv: " << argv  << "\n";
       
+      forEachInst(*mainFunc, [&argc, &argv] (Instruction* inst) {
+        if (isa<StoreInst>(inst)) {
+          auto* sinst = dyn_cast<StoreInst>(inst);
+          errs() << "  ";
+          sinst->print(errs(), false);
+          Value* val = sinst->getValueOperand();
+          Value* ptr = sinst->getPointerOperand();
+          errs() << "\n";
+          errs() << "    inst name: " << sinst << "\n";
+          errs() << "    val: " << val << "\n";
+          errs() << "         val == argc: " << (val == &argc) << "\n";
+          errs() << "         val == argv: " << (val ==  argv) << "\n";
+          errs() << "    ptr: " << ptr << "\n";
+        }
+      });
     }
 
     bool runOnModule(Module& M) override {

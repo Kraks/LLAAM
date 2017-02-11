@@ -27,6 +27,7 @@ using namespace llvm;
 
 namespace AAM {
   typedef std::string var;
+  //typedef Value* var;
 
   /* Location = HeapAddr
    *          | StackPtr
