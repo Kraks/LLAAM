@@ -566,7 +566,7 @@ namespace AAM {
     EleType inplacePop() {
       auto it = set.begin();
       auto head = *it;
-      inplaceRemove(it);
+      inplaceRemove(*it);
       return head;
     }
     bool contains(EleType state) {

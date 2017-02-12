@@ -214,6 +214,12 @@ namespace {
       assert(!(state1 == state));
       todo.inplaceInsert(state1);
       assert(todo.size() == 2);
+      
+      auto head = todo.inplacePop();
+      assert(todo.size() == 1);
+      assert((head == state) || (head == state1));
+      if (head == state) { assert(todo.contains(state1)); }
+      if (head == state1) { assert(todo.contains(state)); }
     }
 
     bool runOnModule(Module& M) override {
