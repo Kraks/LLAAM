@@ -85,6 +85,7 @@ namespace ConcreteAAM {
   
   /******** Static initialization ********/
   
+  // TODO: move to another .cpp file
   unsigned long long ConcreteHeapAddr::id = 0;
   unsigned long long ConcreteStackPtr::id = 0;
   const static std::shared_ptr<FramePtr> initFp = std::make_shared<ConcreteFramePtr>();

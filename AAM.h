@@ -370,18 +370,24 @@ namespace AAM {
   };
   
   // Represent all primitive values
-  // TODO: refactor as single instance
   class PrimValue : public AbstractValue {
   public:
+    typedef std::shared_ptr<PrimValue> PrimValuePtrType;
+    //TODO: make sure the constructor only called once.
     PrimValue() : AbstractValue(KPrimV) {}
-    PrimValue(ValKind k) : AbstractValue(k) {}
     
+    static PrimValuePtrType getInstance() {
+      static PrimValuePtrType instance = std::make_shared<PrimValue>();
+      return instance;
+    }
     static bool classof(const AbstractValue* v) {
       return v->getKind() >= KPrimV &&
              v->getKind() <= KPrimVEnd;
     }
-
+    
   protected:
+    PrimValue(ValKind k) : AbstractValue(k) {}
+    
     virtual bool equalTo(const AbstractValue& that) const override {
       return isa<PrimValue>(&that);
     }
@@ -408,6 +414,10 @@ namespace AAM {
     static IntValuePtrType makeInt(int x) {
       return makeInt(APInt(64, x, true));
     }
+    
+    virtual size_t hashValue() {
+      return hash_value(val);
+    }
 
   protected:
     virtual bool equalTo(const AbstractValue& that) const override {
@@ -418,7 +428,6 @@ namespace AAM {
     }
   };
 
-  
   template<class K, class V, class Less>
   class Store {
   public:

@@ -30,7 +30,8 @@ namespace {
   
       std::shared_ptr<FuncValue> f1 = std::make_shared<FuncValue>(mainFunc);
       std::shared_ptr<FuncValue> f2 = std::make_shared<FuncValue>(mainFunc);
-      std::shared_ptr<PrimValue> pv = std::make_shared<PrimValue>();
+      //std::shared_ptr<PrimValue> pv = std::make_shared<PrimValue>();
+      std::shared_ptr<PrimValue> pv = PrimValue::getInstance();
       assert((*f1.get() == *f2.get()));
       //errs() << "functions eq: " << (*f1.get() == *f2.get()) << "\n"; // true
       
