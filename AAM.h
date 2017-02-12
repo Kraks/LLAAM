@@ -393,7 +393,6 @@ namespace AAM {
     }
   };
   
-  // TODO: test this
   class IntValue : public PrimValue {
   private:
     APInt val;

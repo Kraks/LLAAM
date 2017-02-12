@@ -177,6 +177,13 @@ namespace {
       assert(*s1 == *s1);
       assert(!(*s1 == *s2));
       
+      auto int1 = IntValue::makeInt(-5);
+      auto int2 = IntValue::makeInt(5);
+      auto int3 = IntValue::makeInt(5);
+      assert(int2 != int3);
+      assert(*int2 == *int3);
+      assert(!(*int1 == *int2));
+      
       std::shared_ptr<FramePtr> fp = std::make_shared<ConcreteFramePtr>();
       auto store = getInitStore(M);
       
