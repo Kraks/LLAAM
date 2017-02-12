@@ -76,7 +76,11 @@ namespace ConcreteAAM {
   
   typedef Store<Location, Location, LocationLess> ConcretePred;
   
-  typedef bool DummyMeasure;
+  class DummyMeasure {
+  public:
+    size_t hashValue() { return 0; }
+    inline bool operator==(DummyMeasure& that) { return true; }
+  };
   typedef Conf<ConcreteStore, ConcreteSucc, ConcretePred, DummyMeasure> ConcreteConf;
   
   /******** Static initialization ********/

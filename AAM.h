@@ -9,10 +9,11 @@
 
 #include <set>
 #include <map>
-#include <unordered_map>
 #include <vector>
-#include <algorithm>
 #include <memory>
+#include <algorithm>
+#include <unordered_set>
+#include <unordered_map>
 
 #include "Utils.h"
 
@@ -37,6 +38,8 @@ namespace AAM {
    */
   typedef std::string strvar;
   typedef Value* var;
+  
+  enum AbstractNat { Zero, One, Inf };
 
   /**
    * Location = HeapAddr
@@ -85,6 +88,7 @@ namespace AAM {
     }
   
     virtual size_t hashValue() const {
+      assert(false && "should not call Location::hashValue");
       return hash_value("Location");
     }
     
@@ -131,6 +135,7 @@ namespace AAM {
     }
   
     virtual size_t hashValue() const override {
+      assert(false && "should not call HeapAddr::hashValue");
       return hash_value("HeapAddr");
     }
     
@@ -152,6 +157,7 @@ namespace AAM {
     }
     
     virtual size_t hashValue() const override {
+      assert(false && "should not call StackPtr::hashValue");
       return hash_value("StackPtr");
     }
     
@@ -175,6 +181,7 @@ namespace AAM {
     }
   
     virtual size_t hashValue() const override {
+      assert(false && "should not call BAddr::hashValue");
       return hash_value("BAddr");
     }
 
@@ -386,10 +393,20 @@ namespace AAM {
     APInt val;
     
   public:
+    typedef std::shared_ptr<IntValue> IntValuePtrType;
     IntValue(APInt val) : PrimValue(KIntV), val(val) {}
     
     static bool classof(const AbstractValue* v) {
       return v->getKind() == KIntV;
+    }
+    
+    static IntValuePtrType makeInt(APInt x) {
+      auto i = std::make_shared<IntValue>(x);
+      return i;
+    }
+    
+    static IntValuePtrType makeInt(int x) {
+      return makeInt(APInt(64, x, true));
     }
 
   protected:
@@ -401,7 +418,6 @@ namespace AAM {
     }
   };
 
-  enum AbstractNat { Zero, One, Inf };
   
   template<class K, class V, class Less>
   class Store {
@@ -456,6 +472,13 @@ namespace AAM {
       return this->m.size() == that.m.size() &&
              std::equal(this->m.begin(), this->m.end(), that.m.begin(), pred);
     }
+    
+    // TODO: Need test!
+    virtual size_t hashValue() {
+      size_t seed = 0;
+      // TODO: for all pairs, hash them
+      return seed;
+    }
   
   private:
     StoreMap m;
@@ -487,7 +510,20 @@ namespace AAM {
       return *this->store == *that.store &&
              *this->succ == *that.succ &&
              *this->pred == *that.pred &&
-             *this->measure.getValue() == *that.measure.getValue();
+            ((this->measure.hasValue() && that.measure.hasValue() &&
+             *this->measure.getValue() == *that.measure.getValue()) ||
+              (!this->measure.hasValue() && !that.measure.hasValue()));
+    }
+    
+    virtual size_t hashValue() {
+      size_t seed = 0;
+      seed = hash_combine(seed, store->hashValue());
+      seed = hash_combine(seed, succ->hashValue());
+      seed = hash_combine(seed, pred->hashValue());
+      if (measure.hasValue()) {
+        seed = hash_combine(seed, measure.getValue()->hashValue());
+      }
+      return seed;
     }
     
   private:
@@ -514,6 +550,11 @@ namespace AAM {
       std::shared_ptr<Stmt> s = std::make_shared<Stmt>(inst);
       return s;
     }
+    
+    virtual size_t hashValue() {
+      //errs() << "Stmt::hashValue\n";
+      return hash_value(inst);
+    }
   };
   
   template<class C, class E, class S, class K>
@@ -537,10 +578,20 @@ namespace AAM {
     //virtual StatePtrType next() = 0;
     
     inline bool operator==(State<C,E,S,K>& that) {
+      //errs() << "State::operator==\n";
       return *this->cPtr == *that.cPtr &&
              *this->ePtr == *that.ePtr &&
              *this->sPtr == *that.sPtr &&
              *this->kPtr == *that.kPtr;
+    }
+  
+    virtual size_t hashValue() const {
+      size_t seed = 0;
+      seed = hash_combine(seed, cPtr->hashValue());
+      seed = hash_combine(seed, ePtr->hashValue());
+      seed = hash_combine(seed, sPtr->hashValue());
+      seed = hash_combine(seed, kPtr->hashValue());
+      return seed;
     }
     
   private:
@@ -550,32 +601,61 @@ namespace AAM {
     KPtrType kPtr;
   };
   
-  template<class T>
+  template<typename T> struct StateSetHasher;
+  template<typename T> struct StateSetEqual;
+  
+  template<typename T>
   class StateSet {
-  private:
-    typedef std::shared_ptr<T> EleType;
-    std::set<EleType> set;
   public:
+    typedef std::shared_ptr<T> EleType;
+    
     StateSet() {}
+    
     void inplaceInsert(EleType state) {
       set.insert(state);
     }
+    
     void inplaceRemove(EleType state) {
       set.erase(state);
     }
+    
     EleType inplacePop() {
       auto it = set.begin();
       auto head = *it;
       inplaceRemove(*it);
       return head;
     }
+    
     bool contains(EleType state) {
       auto it = set.find(state);
       return it != set.end();
     }
+    
+    void dump() {
+      for (const auto& elem: set) {
+        errs() << elem->hashValue() << "\n";
+      }
+    }
+    
     size_t size() { return set.size(); }
+    
+  private:
+    std::unordered_set<EleType, StateSetHasher<T>, StateSetEqual<T>> set;
   };
   
+  template<typename T>
+  struct StateSetHasher {
+    std::size_t operator()(const std::shared_ptr<T>& s) const {
+      return s->hashValue();
+    }
+  };
+  
+  template<typename T>
+  struct StateSetEqual {
+    bool operator()(const std::shared_ptr<T>& a, const std::shared_ptr<T>& b) const {
+      return *a == *b;
+    }
+  };
 }
 
 #endif //LLVM_AAM_H

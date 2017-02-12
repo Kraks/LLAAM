@@ -203,22 +203,34 @@ namespace {
           errs() << "    ptr: " << ptr << "\n";
         }
       });
-      
+  
       StateSet<ConcreteState> todo;
       std::shared_ptr<ConcreteState> state = ConcreteState::inject(M, "main");
       todo.inplaceInsert(state);
       assert(todo.contains(state));
-      assert(state == state);
-      
+      assert(*state == *state);
+  
       auto state1 = state->next();
-      assert(!(state1 == state));
+      assert(!(*state1 == *state));
+      
+      auto state1_copy = state->next();
+      assert(*state1 == *state1_copy);
+      //assert(state1->hashValue() == state1_copy->hashValue());
+      
+      // state1 and state1_copy are the same, so the set should only have one of them
       todo.inplaceInsert(state1);
+      todo.inplaceInsert(state1_copy);
+      //errs() << "todo size: " << todo.size() << "\n";
+      //todo.dump();
       assert(todo.size() == 2);
       
       auto head = todo.inplacePop();
       assert(todo.size() == 1);
       assert((head == state) || (head == state1));
+      assert((*head == *state) || (*head == *state1));
+      if (*head == *state) { assert(todo.contains(state1)); }
       if (head == state) { assert(todo.contains(state1)); }
+      if (*head == *state1) { assert(todo.contains(state)); }
       if (head == state1) { assert(todo.contains(state)); }
     }
 
