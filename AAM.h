@@ -560,6 +560,15 @@ namespace AAM {
     void inplaceInsert(EleType state) {
       set.insert(state);
     }
+    void inplaceRemove(EleType state) {
+      set.erase(state);
+    }
+    EleType inplacePop() {
+      auto it = set.begin();
+      auto head = *it;
+      inplaceRemove(it);
+      return head;
+    }
     bool contains(EleType state) {
       auto it = set.find(state);
       return it != set.end();

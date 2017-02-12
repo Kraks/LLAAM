@@ -181,6 +181,7 @@ namespace ConcreteAAM {
       State(c, e, s, k) { };
     
     StatePtrType next() {
+      // TODO: implement the real next()
       Instruction* nextInst = getSyntacticNextInst(getControl()->getInst());
       auto stmt = Stmt::makeStmt(nextInst);
       auto state = makeState(stmt, getEnv(), getStore(), getCont());
