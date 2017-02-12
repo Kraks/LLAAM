@@ -23,7 +23,9 @@
 using namespace llvm;
 
 /* TODO
- * copy constructor for abs location
+ * hashValue for values
+ * inequality for all
+ * toString for all
  */
 
 namespace AAM {
@@ -484,7 +486,7 @@ namespace AAM {
     // TODO: Need test!
     virtual size_t hashValue() {
       size_t seed = 0;
-      // TODO: for all pairs, hash them
+      // TODO: for all pairs<k,v>, hash them
       return seed;
     }
   

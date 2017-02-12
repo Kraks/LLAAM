@@ -95,7 +95,6 @@ namespace ConcreteAAM {
   // TODO: evalAtom
   // TODO: addrOf
   // TODO: Prim operator
-  // TODO: add IntVal?
   
   // addrOf gets the location of a lvalue
   // If the variable is global, then use the initial frame pointer to
@@ -119,8 +118,7 @@ namespace ConcreteAAM {
                                     Module& M) {
     std::shared_ptr<ConcreteStore> store = conf->getStore();
     // TODO: some assertion on lhs
-    std::string var = lhs->getName();
-    std::shared_ptr<Location> bind = std::make_shared<BindAddr>(var, fp);
+    std::shared_ptr<Location> bind = std::make_shared<BindAddr>(lhs, fp);
     auto result = store->lookup(bind);
     
     if (result.hasValue()) {
