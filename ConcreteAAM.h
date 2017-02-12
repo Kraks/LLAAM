@@ -167,10 +167,25 @@ namespace ConcreteAAM {
     return store;
   }
   
-  /*
+  std::shared_ptr<ConcreteConf> getInitConf(Module& M) {
+    std::shared_ptr<ConcreteStore> store = getInitStore(M);
+    std::shared_ptr<ConcreteSucc> succ = std::make_shared<ConcreteSucc>();
+    std::shared_ptr<ConcretePred> pred = std::make_shared<ConcretePred>();
+    std::shared_ptr<ConcreteConf> conf = std::make_shared<ConcreteConf>(store, succ, pred);
+    return conf;
+  }
+  
   std::shared_ptr<ConcreteState> inject(Module& M, std::string mainFuncName) {
+    std::shared_ptr<ConcreteConf> initConf = getInitConf(M);
     Function* main = M.getFunction(mainFuncName);
     Instruction* entry = getEntry(*main);
+    std::shared_ptr<Stmt> initStmt = std::make_shared<Stmt>(entry);
+    std::shared_ptr<ConcreteState> initState = std::make_shared<ConcreteState>(initStmt, initFp, initConf, initFp);
+    return initState;
+  }
+  
+  /*
+  std::shared_ptr<ConcreteState> next(std::shared_ptr<ConcreteState> state) {
     
   }
    */

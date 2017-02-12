@@ -539,6 +539,22 @@ namespace AAM {
     KPtrType kPtr;
   };
   
+  template<class T>
+  class StateSet {
+  private:
+    typedef std::shared_ptr<T> EleType;
+    std::set<EleType> set;
+  public:
+    StateSet() {}
+    void inplaceInsert(EleType state) {
+      set.insert(state);
+    }
+    bool contains(EleType state) {
+      auto it = set.find(state);
+      return it != set.end();
+    }
+  };
+  
 }
 
 #endif //LLVM_AAM_H

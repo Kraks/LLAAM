@@ -186,6 +186,8 @@ namespace {
       long long llarg = reinterpret_cast<long long>(&argc);
       errs() << "argv: " << argv  << "\n";
       
+      // This test shows that we can use Value* as unique identifier
+      // of a vairable.
       forEachInst(*mainFunc, [&argc, &argv] (Instruction* inst) {
         if (isa<StoreInst>(inst)) {
           auto* sinst = dyn_cast<StoreInst>(inst);
@@ -201,6 +203,12 @@ namespace {
           errs() << "    ptr: " << ptr << "\n";
         }
       });
+      
+      StateSet<ConcreteState> todo;
+      std::shared_ptr<ConcreteState> s = inject(M, "main");
+      todo.inplaceInsert(s);
+      assert(todo.contains(s));
+      assert(s == s);
     }
 
     bool runOnModule(Module& M) override {
