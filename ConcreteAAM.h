@@ -79,8 +79,6 @@ namespace ConcreteAAM {
   typedef bool DummyMeasure;
   typedef Conf<ConcreteStore, ConcreteSucc, ConcretePred, DummyMeasure> ConcreteConf;
   
-  typedef State<Stmt, FramePtr, ConcreteConf, StackPtr> ConcreteState;
-  
   /******** Static initialization ********/
   
   unsigned long long ConcreteHeapAddr::id = 0;
@@ -174,21 +172,22 @@ namespace ConcreteAAM {
     std::shared_ptr<ConcreteConf> conf = std::make_shared<ConcreteConf>(store, succ, pred);
     return conf;
   }
+
+  class ConcreteState : public State<Stmt, FramePtr, ConcreteConf, StackPtr> {
+  public:
+    typedef std::shared_ptr<ConcreteState> StatePtrType;
+    ConcreteState(CPtrType c, EPtrType e, SPtrType s, KPtrType k) :
+      State(c, e, s, k) { };
   
-  std::shared_ptr<ConcreteState> inject(Module& M, std::string mainFuncName) {
-    std::shared_ptr<ConcreteConf> initConf = getInitConf(M);
-    Function* main = M.getFunction(mainFuncName);
-    Instruction* entry = getEntry(*main);
-    std::shared_ptr<Stmt> initStmt = std::make_shared<Stmt>(entry);
-    std::shared_ptr<ConcreteState> initState = std::make_shared<ConcreteState>(initStmt, initFp, initConf, initFp);
-    return initState;
-  }
-  
-  /*
-  std::shared_ptr<ConcreteState> next(std::shared_ptr<ConcreteState> state) {
-    
-  }
-   */
+    static StatePtrType inject(Module& M, std::string mainFuncName) {
+      std::shared_ptr<ConcreteConf> initConf = getInitConf(M);
+      Function* main = M.getFunction(mainFuncName);
+      Instruction* entry = getEntry(*main);
+      std::shared_ptr<Stmt> initStmt = std::make_shared<Stmt>(entry);
+      std::shared_ptr<ConcreteState> initState = std::make_shared<ConcreteState>(initStmt, initFp, initConf, initFp);
+      return initState;
+    }
+  };
 }
 
 #endif //LLVM_CONCRETEAAM_H
