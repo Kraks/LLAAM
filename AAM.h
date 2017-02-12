@@ -504,8 +504,15 @@ namespace AAM {
   public:
     Stmt(Instruction* inst): inst(inst) {}
     
+    Instruction* getInst() { return inst; }
+    
     inline bool operator==(Stmt& that) {
       return this->inst == that.inst;
+    }
+    
+    static std::shared_ptr<Stmt> makeStmt(Instruction* inst) {
+      std::shared_ptr<Stmt> s = std::make_shared<Stmt>(inst);
+      return s;
     }
   };
   
@@ -516,6 +523,7 @@ namespace AAM {
     typedef std::shared_ptr<E> EPtrType;
     typedef std::shared_ptr<S> SPtrType;
     typedef std::shared_ptr<K> KPtrType;
+    typedef std::shared_ptr<State<C,E,S,K>> StatePtrType;
     
     State(CPtrType c, EPtrType e, SPtrType s, KPtrType k)
       : cPtr(c), ePtr(e), sPtr(s), kPtr(k) {}
@@ -524,6 +532,9 @@ namespace AAM {
     EPtrType getEnv() { return ePtr; }
     SPtrType getStore() { return sPtr; }
     KPtrType getCont() { return kPtr; }
+    
+    // TODO: shared_ptr as covariant return type
+    //virtual StatePtrType next() = 0;
     
     inline bool operator==(State<C,E,S,K>& that) {
       return *this->cPtr == *that.cPtr &&
@@ -553,6 +564,7 @@ namespace AAM {
       auto it = set.find(state);
       return it != set.end();
     }
+    size_t size() { return set.size(); }
   };
   
 }

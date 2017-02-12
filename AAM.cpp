@@ -205,10 +205,15 @@ namespace {
       });
       
       StateSet<ConcreteState> todo;
-      std::shared_ptr<ConcreteState> s = ConcreteState::inject(M, "main");
-      todo.inplaceInsert(s);
-      assert(todo.contains(s));
-      assert(s == s);
+      std::shared_ptr<ConcreteState> state = ConcreteState::inject(M, "main");
+      todo.inplaceInsert(state);
+      assert(todo.contains(state));
+      assert(state == state);
+      
+      auto state1 = state->next();
+      assert(!(state1 == state));
+      todo.inplaceInsert(state1);
+      assert(todo.size() == 2);
     }
 
     bool runOnModule(Module& M) override {

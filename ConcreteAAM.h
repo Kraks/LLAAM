@@ -176,16 +176,29 @@ namespace ConcreteAAM {
   class ConcreteState : public State<Stmt, FramePtr, ConcreteConf, StackPtr> {
   public:
     typedef std::shared_ptr<ConcreteState> StatePtrType;
+    
     ConcreteState(CPtrType c, EPtrType e, SPtrType s, KPtrType k) :
       State(c, e, s, k) { };
-  
+    
+    StatePtrType next() {
+      Instruction* nextInst = getSyntacticNextInst(getControl()->getInst());
+      auto stmt = Stmt::makeStmt(nextInst);
+      auto state = makeState(stmt, getEnv(), getStore(), getCont());
+      return state;
+    }
+    
     static StatePtrType inject(Module& M, std::string mainFuncName) {
       std::shared_ptr<ConcreteConf> initConf = getInitConf(M);
       Function* main = M.getFunction(mainFuncName);
       Instruction* entry = getEntry(*main);
       std::shared_ptr<Stmt> initStmt = std::make_shared<Stmt>(entry);
-      std::shared_ptr<ConcreteState> initState = std::make_shared<ConcreteState>(initStmt, initFp, initConf, initFp);
+      std::shared_ptr<ConcreteState> initState = makeState(initStmt, initFp, initConf, initFp);
       return initState;
+    }
+    
+    static StatePtrType makeState(CPtrType c, EPtrType e, SPtrType s, KPtrType k) {
+      std::shared_ptr<ConcreteState> state = std::make_shared<ConcreteState>(c, e, s, k);
+      return state;
     }
   };
 }
