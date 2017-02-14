@@ -84,6 +84,7 @@ namespace {
       assert(store3.size() == 1);
       assert(store2 == store3);
       assert(store2.hashValue() == store3.hashValue());
+      assert(store.hashValue() != store2.hashValue());
       
       shared_ptr<AbstractValue> av = store.lookup(baddr2).getValue();
       assert(av == lv1);

@@ -338,6 +338,7 @@ namespace AAM {
   class LocationValue : public AbstractValue {
     std::shared_ptr<Location> loc;
   public:
+    typedef std::shared_ptr<LocationValue> LocValPtrType;
     LocationValue(std::shared_ptr<Location> loc) : AbstractValue(KLocationV), loc(loc) {}
     
     static bool classof(const AbstractValue* v) {
@@ -346,6 +347,11 @@ namespace AAM {
   
     std::shared_ptr<Location>  getLocation() {
       return loc;
+    }
+    
+    static LocValPtrType makeLocationValue(std::shared_ptr<Location> loc) {
+      std::shared_ptr<LocationValue> locVal = std::make_shared<LocationValue>(loc);
+      return locVal;
     }
     
     virtual size_t hashValue() override {
@@ -522,10 +528,8 @@ namespace AAM {
              std::equal(this->m.begin(), this->m.end(), that.m.begin(), pred);
     }
     
-    // TODO: Need test!
     virtual size_t hashValue() {
       size_t seed = 0;
-      // TODO: for all pairs<k,v>, hash them
       for (const auto& pair: m) {
         seed = hash_combine(seed, pair.first->hashValue());
         seed = hash_combine(seed, pair.second->hashValue());
