@@ -67,6 +67,7 @@ namespace {
       assert(*baddr1.get() == *baddr1.get());
       assert(*baddr1 == *baddr1);
       assert(*baddr1.get() == *baddr2.get());
+      assert(baddr1->hashValue() == baddr2->hashValue());
       assert(!(*baddr1.get() == *sp1.get()));
       assert(!(*baddr1.get() == *hp2.get()));
       
@@ -82,6 +83,7 @@ namespace {
       ConcreteStore store3({{sp1, f2}});
       assert(store3.size() == 1);
       assert(store2 == store3);
+      assert(store2.hashValue() == store3.hashValue());
       
       shared_ptr<AbstractValue> av = store.lookup(baddr2).getValue();
       assert(av == lv1);
@@ -104,6 +106,7 @@ namespace {
       shared_ptr<FuncValue> f11 = static_pointer_cast<FuncValue>(v1);
       shared_ptr<FuncValue> f22 = static_pointer_cast<FuncValue>(v2);
       assert(*f11 == *f22);
+      assert(f11->hashValue() == f22->hashValue());
       //errs() << "functions(get from store) eq: " << (*f11 == *f22) << "\n"; // true
       
       shared_ptr<AbstractValue> someV = store.lookup(sp2).getValue();
@@ -123,6 +126,7 @@ namespace {
       std::shared_ptr<AbstractValue> ap(pv1);
       assert(*ap == *pv1);
       assert(*pv1 == *pv2);
+      assert(pv1->hashValue() == pv2->hashValue());
       //errs() << "PrimVal eq: " << (*pv1 == *pv2) << "\n";
       
       for (int i = 0; i <= 2000; i++) {
@@ -184,6 +188,7 @@ namespace {
       assert(*int2 == *int3);
       assert(!(*int1 == *int2));
       assert(int2->hashValue() == int3->hashValue());
+      assert(int2->hashValue() != int1->hashValue());
       
       std::shared_ptr<FramePtr> fp = std::make_shared<ConcreteFramePtr>();
       auto store = getInitStore(M);

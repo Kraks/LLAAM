@@ -526,6 +526,10 @@ namespace AAM {
     virtual size_t hashValue() {
       size_t seed = 0;
       // TODO: for all pairs<k,v>, hash them
+      for (const auto& pair: m) {
+        seed = hash_combine(seed, pair.first->hashValue());
+        seed = hash_combine(seed, pair.second->hashValue());
+      }
       return seed;
     }
   
