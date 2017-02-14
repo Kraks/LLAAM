@@ -19,8 +19,8 @@ namespace ConcreteAAM {
                                           std::shared_ptr<FramePtr> fp,
                                           std::shared_ptr<ConcreteConf> conf,
                                           Module& M) {
-    //const APInt& apInt = i->getValue();
-    return IntValue::makeInt(3);
+    const APInt& apInt = i->getValue();
+    return IntValue::makeInt(4);
   }
   
   std::shared_ptr<AbstractValue> evalAtom(Value* val,
