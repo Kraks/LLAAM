@@ -266,6 +266,11 @@ namespace AAM {
       return a.equalTo(b);
     }
     
+    virtual size_t hashValue() {
+      assert(false && "should not call AbstractValue::hashValue");
+      return hash_value("AbstractValue");
+    }
+    
   private:
     ValKind kind;
     AbstractValue() {}
@@ -295,6 +300,20 @@ namespace AAM {
     
     static bool classof(const AbstractValue* v) {
       return v->getKind() == KContV;
+    }
+    
+    virtual size_t hashValue() override {
+      size_t seed = 0;
+      if (!_lhs.empty()) {
+        seed = hash_combine(seed, hash_value(_lhs));
+      }
+      if (!lhs) {
+        seed = hash_combine(seed, hash_value(lhs));
+      }
+      seed = hash_combine(seed, hash_value(inst));
+      seed = hash_combine(seed, framePtr->hashValue());
+      seed = hash_combine(seed, stackPtr->hashValue());
+      return seed;
     }
     
     strvar getStrLhs() { return _lhs; }
@@ -327,6 +346,14 @@ namespace AAM {
   
     std::shared_ptr<Location>  getLocation() {
       return loc;
+    }
+    
+    virtual size_t hashValue() override {
+      size_t seed = 0;
+      // TODO: is that necessary?
+      seed = hash_combine(seed, hash_value("LocationValue"));
+      seed = hash_combine(seed, loc->hashValue());
+      return seed;
     }
 
   protected:
@@ -361,6 +388,12 @@ namespace AAM {
     static bool classof(const AbstractValue* v) {
       return v->getKind() == KFuncV;
     }
+  
+    virtual size_t hashValue() override {
+      size_t seed = 0;
+      seed = hash_combine(seed, hash_value(fun));
+      return seed;
+    }
 
   protected:
     virtual bool equalTo(const AbstractValue& that) const override {
@@ -387,6 +420,12 @@ namespace AAM {
              v->getKind() <= KPrimVEnd;
     }
     
+    virtual size_t hashValue() override {
+      size_t seed = 0;
+      seed = hash_combine(seed, hash_value("PrimValue"));
+      return seed;
+    }
+  
   protected:
     PrimValue(ValKind k) : AbstractValue(k) {}
     
@@ -416,10 +455,10 @@ namespace AAM {
       return makeInt(APInt(64, x, true));
     }
     
-    virtual size_t hashValue() {
+    virtual size_t hashValue() override {
       return hash_value(val);
     }
-
+    
   protected:
     virtual bool equalTo(const AbstractValue& that) const override {
       if (!isa<IntValue>(&that))

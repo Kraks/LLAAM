@@ -117,7 +117,7 @@ namespace ConcreteAAM {
                                     std::shared_ptr<ConcreteConf> conf,
                                     Module& M) {
     std::shared_ptr<ConcreteStore> store = conf->getStore();
-    // TODO: some assertion on lhs
+    // TODO: some assertion on lhs?
     std::shared_ptr<Location> bind = std::make_shared<BindAddr>(lhs, fp);
     auto result = store->lookup(bind);
     

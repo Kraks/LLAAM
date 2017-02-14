@@ -183,6 +183,7 @@ namespace {
       assert(int2 != int3);
       assert(*int2 == *int3);
       assert(!(*int1 == *int2));
+      assert(int2->hashValue() == int3->hashValue());
       
       std::shared_ptr<FramePtr> fp = std::make_shared<ConcreteFramePtr>();
       auto store = getInitStore(M);
@@ -240,6 +241,10 @@ namespace {
       if (head == state) { assert(todo.contains(state1)); }
       if (*head == *state1) { assert(todo.contains(state)); }
       if (head == state1) { assert(todo.contains(state)); }
+      
+      auto state2 = state1->next();
+      todo.inplaceInsert(state2);
+      assert(todo.size() == 2);
     }
 
     bool runOnModule(Module& M) override {
