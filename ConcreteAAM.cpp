@@ -6,8 +6,9 @@
 namespace ConcreteAAM {
   using namespace AAM;
   
+  Module* ConcreteState::module = nullptr;
   unsigned long long ConcreteHeapAddr::id = 0;
-  unsigned long long ConcreteStackPtr::id = 0;
+  unsigned long long ConcreteStackAddr::id = 0;
   
   /********  Auxiliary functions  ********/
   
@@ -16,15 +17,14 @@ namespace ConcreteAAM {
   
   // If val is a constant integer, return IntVal(val)
   std::shared_ptr<AbstractValue> evalAtom(ConstantInt* i,
-                                          std::shared_ptr<FramePtr> fp,
+                                          std::shared_ptr<FrameAddr> fp,
                                           std::shared_ptr<ConcreteConf> conf,
                                           Module& M) {
-    const APInt& apInt = i->getValue();
-    return IntValue::makeInt(4);
+    return IntValue::makeInt(i->getValue());
   }
   
   std::shared_ptr<AbstractValue> evalAtom(Value* val,
-                                          std::shared_ptr<FramePtr> fp,
+                                          std::shared_ptr<FrameAddr> fp,
                                           std::shared_ptr<ConcreteConf> conf,
                                           Module& M) {
     // If val is a left-hand side value, return the value of its address
@@ -40,7 +40,7 @@ namespace ConcreteAAM {
   // If the variable is global, then use the initial frame pointer to
   // form the BindAddr, otherwise use current frame pointer.
   std::shared_ptr<Location> addrsOf(std::string var,
-                                    std::shared_ptr<FramePtr> fp,
+                                    std::shared_ptr<FrameAddr> fp,
                                     std::shared_ptr<ConcreteConf> conf,
                                     Module& M) {
     if (M.getGlobalVariable(var)) {
@@ -53,7 +53,7 @@ namespace ConcreteAAM {
   // If the lvalue is a pointer(location), then query the store
   // to retrieve the location it points to.
   std::shared_ptr<Location> addrsOf(Value* lhs,
-                                    std::shared_ptr<FramePtr> fp,
+                                    std::shared_ptr<FrameAddr> fp,
                                     std::shared_ptr<ConcreteConf> conf,
                                     Module& M) {
     std::shared_ptr<ConcreteStore> store = conf->getStore();

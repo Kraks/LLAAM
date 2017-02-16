@@ -7,6 +7,8 @@
 #ifndef LLVM_CONCRETEAAM_H
 #define LLVM_CONCRETEAAM_H
 
+// TODO cast
+
 namespace ConcreteAAM {
   using namespace AAM;
   
@@ -40,20 +42,36 @@ namespace ConcreteAAM {
     static unsigned long long id;
   };
   
-  class ConcreteStackPtr : public StackPtr {
+  class ConcreteStackAddr : public StackAddr {
   public:
-    ConcreteStackPtr() : StackPtr(KConcreteStackPtr) {
+    typedef std::shared_ptr<ConcreteStackAddr> ConcreteStackAddrPtrType;
+    ConcreteStackAddr() : StackAddr(KConcreteStackAddr) {
       myId = id++;
     }
     
     static bool classof(const Location* loc) {
-      return loc->getKind() == KConcreteStackPtr;
+      return loc->getKind() == KConcreteStackAddr;
+    }
+    
+    static ConcreteStackAddrPtrType makeConcreteStackAdd() {
+      ConcreteStackAddrPtrType s = std::make_shared<ConcreteStackAddr>();
+      return s;
+    }
+    
+    static std::shared_ptr<std::vector<ConcreteStackAddrPtrType>> allocate(size_t n) {
+      std::shared_ptr<std::vector<ConcreteStackAddrPtrType>> v = std::make_shared<std::vector<ConcreteStackAddrPtrType>>();
+      for (int i = 0; i < n; i++) {
+        ConcreteStackAddrPtrType s = makeConcreteStackAdd();
+        v->push_back(s);
+      }
+      assert(v->size() == n);
+      return v;
     }
     
     virtual bool equalTo(const Location& that) const override {
-      if (!isa<ConcreteStackPtr>(&that))
+      if (!isa<ConcreteStackAddr>(&that))
         return false;
-      auto* newThat = dyn_cast<ConcreteStackPtr>(&that);
+      auto* newThat = dyn_cast<ConcreteStackAddr>(&that);
       return newThat->myId == this->myId;
     }
     
@@ -69,7 +87,7 @@ namespace ConcreteAAM {
     static unsigned long long id;
   };
   
-  typedef ConcreteStackPtr ConcreteFramePtr;
+  typedef ConcreteStackAddr ConcreteFrameAddr;
   
   typedef Store<Location, AbstractValue, LocationLess> ConcreteStore;
   
@@ -82,33 +100,56 @@ namespace ConcreteAAM {
     size_t hashValue() { return 0; }
     inline bool operator==(DummyMeasure& that) { return true; }
   };
-  typedef Conf<ConcreteStore, ConcreteSucc, ConcretePred, DummyMeasure> ConcreteConf;
   
-  const static std::shared_ptr<FramePtr> initFp = std::make_shared<ConcreteFramePtr>();
+  class ConcreteConf : public Conf<ConcreteStore, ConcreteSucc, ConcretePred, DummyMeasure> {
+  public:
+    typedef std::shared_ptr<ConcreteConf> ConfPtrType;
+      
+    ConcreteConf(StorePtrType store, SuccPtrType succ, PredPtrType pred) :
+      Conf(store, succ, pred) {}
+    
+    static ConfPtrType makeConf(StorePtrType store, SuccPtrType succ, PredPtrType pred) {
+      ConfPtrType conf = std::make_shared<ConcreteConf>(store, succ, pred);
+      return conf;
+    }
+  };
+  
+  const static std::shared_ptr<FrameAddr> initFp = std::make_shared<ConcreteFrameAddr>();
   
   std::shared_ptr<ConcreteStore> getInitStore(Module& M);
   std::shared_ptr<ConcreteConf>  getInitConf(Module& M);
   
   std::shared_ptr<AbstractValue> evalAtom(ConstantInt* i,
-                                          std::shared_ptr<FramePtr> fp,
+                                          std::shared_ptr<FrameAddr> fp,
                                           std::shared_ptr<ConcreteConf> conf,
                                           Module& M);
   std::shared_ptr<AbstractValue> evalAtom(Value* val,
-                                          std::shared_ptr<FramePtr> fp,
+                                          std::shared_ptr<FrameAddr> fp,
                                           std::shared_ptr<ConcreteConf> conf,
                                           Module& M);
   
   std::shared_ptr<Location> addrsOf(std::string var,
-                                    std::shared_ptr<FramePtr> fp,
+                                    std::shared_ptr<FrameAddr> fp,
                                     std::shared_ptr<ConcreteConf> conf,
                                     Module& M);
   std::shared_ptr<Location> addrsOf(Value* lhs,
-                                    std::shared_ptr<FramePtr> fp,
+                                    std::shared_ptr<FrameAddr> fp,
                                     std::shared_ptr<ConcreteConf> conf,
                                     Module& M);
   
-  class ConcreteState : public State<Stmt, FramePtr, ConcreteConf, StackPtr> {
+  class ConcreteState : public State<Stmt, FrameAddr, ConcreteConf, StackAddr> {
+  private:
+    static Module* module;
+    
   public:
+    static void setModule(Module* M) {
+      module = M;
+    }
+    static Module* getModule() {
+      assert(module != nullptr);
+      return module;
+    }
+  
     typedef std::shared_ptr<ConcreteState> StatePtrType;
     
     ConcreteState(CPtrType c, EPtrType e, SPtrType s, KPtrType k) :
@@ -125,6 +166,15 @@ namespace ConcreteAAM {
         std::string fname = function->getName();
         errs() << "function name: " << fname << "\n";
         //TODO: malloc/free
+        if (fname == "malloc") {
+          
+        }
+        else if (fname == "free") {
+          
+        }
+        else {
+          
+        }
       }
       else if (isa<ReturnInst>(inst)) {
         ReturnInst* returnInst = dyn_cast<ReturnInst>(inst);
@@ -137,15 +187,72 @@ namespace ConcreteAAM {
       }
       else if (isa<AllocaInst>(inst)) {
         AllocaInst* allocaInst = dyn_cast<AllocaInst>(inst);
+        Type* allocaType = allocaInst->getAllocatedType();
+        uint64_t typeByteSize = ConcreteState::getModule()->getDataLayout().getTypeAllocSize(allocaType);
+        assert(typeByteSize > 0);
+        bool isArrayAlloc = allocaInst->isArrayAllocation();
+        Value* arraySize = allocaInst->getArraySize(); //TODO: allocate array size
+        
+        if (isArrayAlloc && isa<ConstantInt>(arraySize)) {
+          errs() << "array size is constant\n";
+        }
+        
+        errs() << "allocaInst num oprands: " << allocaInst->getNumOperands() << "\n";
+        errs() << "allocaInst array alloc? " << allocaInst->isArrayAllocation() << "\n";
+        errs() << "allocaInst alloca size: "  << allocaInst->getArraySize() << "\n";
+        
+        auto store = this->getStore()->getStore();
+        auto succ = this->getStore()->getSucc();
+        auto pred = this->getStore()->getPred();
+        
+        // aTop is the stack pointer in current state.
+        auto aTop = this->getCont();
+        auto bot = BotValue::getInstance();
+        auto addrs = ConcreteStackAddr::allocate(typeByteSize);
+        
+        auto newStore = store->copy();
+        auto locVal = LocationValue::makeLocationValue(addrs->front());
+        newStore->inplaceUpdate(addrsOf(inst, this->getEnv(), this->getStore(), *ConcreteState::getModule()), locVal);
+        for (auto& addr : *addrs) {
+          newStore->inplaceUpdate(addr, bot);
+        }
+        assert(newStore->size() == (store->size() + addrs->size()));
+        
+        auto newSucc = succ->copy();
+        for (unsigned long i = 0; i < addrs->size(); i++) {
+          if (i == addrs->size()-1) {
+            newSucc->inplaceUpdate(addrs->at(i), aTop);
+          }
+          else {
+            newSucc->inplaceUpdate(addrs->at(i), addrs->at(i+1));
+          }
+        }
+        assert(newSucc->size() == (succ->size() + addrs->size()));
+        
+        auto newPred = pred->copy();
+        std::shared_ptr<Location> last = *addrs->begin();
+        newPred->inplaceUpdate(aTop, addrs->back());
+        for (unsigned long i = addrs->size()-1; i > 0; i--) {
+          newPred->inplaceUpdate(addrs->at(i), addrs->at(i-1));
+        }
+        assert(newPred->size() == (pred->size() + addrs->size()));
+        
+        auto newConf = ConcreteConf::makeConf(newStore, newSucc, newPred);
+        auto newStackPtr = addrs->front();
+        auto nextStmt = Stmt::makeStmt(nextInst);
+        auto newState = ConcreteState::makeState(nextStmt, this->getEnv(), newConf, newStackPtr);
       }
       else if (isa<BranchInst>(inst)) {
         BranchInst* branchInst = dyn_cast<BranchInst>(inst);
+      }
+      else if (isa<SwitchInst>(inst)) {
         
       }
       else {
         
       }
       
+      ///////////////////////////
       auto stmt = Stmt::makeStmt(nextInst);
       auto state = makeState(stmt, getEnv(), getStore(), getCont());
       return state;

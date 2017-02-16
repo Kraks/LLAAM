@@ -23,10 +23,10 @@ namespace {
     static char ID;
     AAMPass() : ModulePass(ID) {}
     
-    static void testStore(Module& M) {
+    static void test1(Module& M) {
       Function* mainFunc = M.getFunction("main");
-      Function* add = M.getFunction("add");
-      Function* sub = M.getFunction("sub");
+      //Function* add = M.getFunction("add");
+      //Function* sub = M.getFunction("sub");
   
       std::shared_ptr<FuncValue> f1 = std::make_shared<FuncValue>(mainFunc);
       std::shared_ptr<FuncValue> f2 = std::make_shared<FuncValue>(mainFunc);
@@ -35,12 +35,12 @@ namespace {
       assert((*f1.get() == *f2.get()));
       //errs() << "functions eq: " << (*f1.get() == *f2.get()) << "\n"; // true
       
-      std::shared_ptr<ConcreteStackPtr> sp1 = std::make_shared<ConcreteStackPtr>();
-      assert(isa<ConcreteStackPtr>(*sp1.get()));
-      assert(isa<StackPtr>(*sp1.get()));
+      std::shared_ptr<ConcreteStackAddr> sp1 = std::make_shared<ConcreteStackAddr>();
+      assert(isa<ConcreteStackAddr>(*sp1.get()));
+      assert(isa<StackAddr>(*sp1.get()));
       
-      std::shared_ptr<ConcreteStackPtr> sp2 = std::make_shared<ConcreteStackPtr>();
-      assert(isa<ConcreteStackPtr>(*sp2.get()));
+      std::shared_ptr<ConcreteStackAddr> sp2 = std::make_shared<ConcreteStackAddr>();
+      assert(isa<ConcreteStackAddr>(*sp2.get()));
       assert(!(isa<HeapAddr>(*sp2.get())));
       
       std::shared_ptr<ConcreteHeapAddr> hp1 = std::make_shared<ConcreteHeapAddr>();
@@ -58,7 +58,7 @@ namespace {
       assert(*hp1.get() == *hp1.get());
       assert(*hp2.get() == *hp2.get());
       
-      std::shared_ptr<ConcreteStackPtr> sp3 = std::make_shared<ConcreteStackPtr>();
+      std::shared_ptr<ConcreteStackAddr> sp3 = std::make_shared<ConcreteStackAddr>();
       
       std::shared_ptr<BindAddr> baddr1 = std::make_shared<BindAddr>("x", sp3);
       std::shared_ptr<BindAddr> baddr2 = std::make_shared<BindAddr>("x", sp3);
@@ -159,11 +159,11 @@ namespace {
       assert(*c2 == *c2);
       assert(!(*c1 == *c2));
       
-      shared_ptr<FramePtr> sp1_copy = c1->getFramePtr();
+      shared_ptr<FrameAddr> sp1_copy = c1->getFrameAddr();
       assert(sp1.get() == sp1_copy.get());
     }
     
-    static void testLLVM(Module& M) {
+    static void test2(Module& M) {
       Function* mainFunc = M.getFunction("main");
       printInstructions(*mainFunc);
       BasicBlock& entry = mainFunc->getEntryBlock();
@@ -191,33 +191,35 @@ namespace {
       assert(int2->hashValue() == int3->hashValue());
       assert(int2->hashValue() != int1->hashValue());
       
-      std::shared_ptr<FramePtr> fp = std::make_shared<ConcreteFramePtr>();
+      std::shared_ptr<FrameAddr> fp = std::make_shared<ConcreteFrameAddr>();
       auto store = getInitStore(M);
       
       auto& args = mainFunc->getArgumentList();
-      auto& argc = args.front();
-      auto* argv = args.getNext(&argc);
-      errs() << "argc: " << &argc << "\n";
-      long long llarg = reinterpret_cast<long long>(&argc);
-      errs() << "argv: " << argv  << "\n";
-      
-      // This test shows that we can use Value* as unique identifier
-      // of a vairable.
-      forEachInst(*mainFunc, [&argc, &argv] (Instruction* inst) {
-        if (isa<StoreInst>(inst)) {
-          auto* sinst = dyn_cast<StoreInst>(inst);
-          errs() << "  ";
-          sinst->print(errs(), false);
-          Value* val = sinst->getValueOperand();
-          Value* ptr = sinst->getPointerOperand();
-          errs() << "\n";
-          errs() << "    inst name: " << sinst << "\n";
-          errs() << "    val: " << val << "\n";
-          errs() << "         val == argc: " << (val == &argc) << "\n";
-          errs() << "         val == argv: " << (val ==  argv) << "\n";
-          errs() << "    ptr: " << ptr << "\n";
-        }
-      });
+      if (args.size() != 0) {
+        auto& argc = args.front();
+        auto* argv = args.getNext(&argc);
+        errs() << "argc: " << &argc << "\n";
+        long long llarg = reinterpret_cast<long long>(&argc);
+        errs() << "argv: " << argv  << "\n";
+        
+        // This test shows that we can use Value* as unique identifier
+        // of a vairable.
+        forEachInst(*mainFunc, [&argc, &argv] (Instruction* inst) {
+          if (isa<StoreInst>(inst)) {
+            auto* sinst = dyn_cast<StoreInst>(inst);
+            errs() << "  ";
+            sinst->print(errs(), false);
+            Value* val = sinst->getValueOperand();
+            Value* ptr = sinst->getPointerOperand();
+            errs() << "\n";
+            errs() << "    inst name: " << sinst << "\n";
+            errs() << "    val: " << val << "\n";
+            errs() << "         val == argc: " << (val == &argc) << "\n";
+            errs() << "         val == argv: " << (val ==  argv) << "\n";
+            errs() << "    ptr: " << ptr << "\n";
+          }
+        });
+      }
   
       StateSet<ConcreteState> todo;
       std::shared_ptr<ConcreteState> state = ConcreteState::inject(M, "main");
@@ -252,10 +254,18 @@ namespace {
       todo.inplaceInsert(state2);
       assert(todo.size() == 2);
     }
+    
+    static void test3(Module& M) {
+      std::shared_ptr<ConcreteState> state = ConcreteState::inject(M, "main");
+      auto nextStaate = state->next();
+      
+    }
 
     bool runOnModule(Module& M) override {
-      testStore(M);
-      testLLVM(M);
+      ConcreteState::setModule(&M);
+      //test1(M);
+      //test2(M);
+      test3(M);
       return false;
     }
 

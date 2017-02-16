@@ -3,6 +3,7 @@
 //
 
 #include "llvm/Pass.h"
+#include "llvm/IR/type.h"
 #include "llvm/IR/Module.h"
 #include "llvm/IR/Function.h"
 #include "llvm/IR/Constants.h"
@@ -48,8 +49,8 @@ namespace AAM {
 
   /**
    * Location = HeapAddr
-   *          | StackPtr
-   *          | FramePtr
+   *          | StackAddr
+   *          | FrameAddr
    *          | BAddr
    */
   class Location {
@@ -60,10 +61,10 @@ namespace AAM {
         KZeroCFAHeapAddr,
       KHeapAddrEnd,
       
-      KStackPtr,
-        KConcreteStackPtr,
-        KZeroCFAStackPtr,
-      KStackPtrEnd,
+      KStackAddr,
+        KConcreteStackAddr,
+        KZeroCFAStackAddr,
+      KStackAddrEnd,
       
       KBAddr,
         KBindAddr,
@@ -75,9 +76,9 @@ namespace AAM {
         case KHeapAddr: return "HeapAddr";
         case KConcreteHeapAddr: return "ConcreteHeapAddr";
         case KZeroCFAHeapAddr: return "0CFAHeapAddr";
-        case KStackPtr: return "StackPtr";
-        case KConcreteStackPtr: return "ConcreteStackPtr";
-        case KZeroCFAStackPtr: return "0CFAStackPtr";
+        case KStackAddr: return "StackAddr";
+        case KConcreteStackAddr: return "ConcreteStackAddr";
+        case KZeroCFAStackAddr: return "0CFAStackAddr";
         case KBAddr: return "BAddr";
         case KBindAddr: return "BindAddr";
         default: return "Unknown";
@@ -154,29 +155,28 @@ namespace AAM {
     }
   };
 
-  class StackPtr : public Location {
+  class StackAddr : public Location {
   public:
     static bool classof(const Location* loc) {
       LocationKind k = loc->getKind();
-      return k >= KStackPtr && k <= KStackPtrEnd;
+      return k >= KStackAddr && k <= KStackAddrEnd;
     }
     
     virtual size_t hashValue() const override {
-      assert(false && "should not call StackPtr::hashValue");
-      return hash_value("StackPtr");
+      assert(false && "should not call StackAddr::hashValue");
+      return hash_value("StackAddr");
     }
     
   protected:
     virtual bool equalTo(const Location& that) const override {
-      //errs() << "should not call StackPtr::equalTo\n";
-      assert(false && "should not call StackPtr::equalTo");
+      assert(false && "should not call StackAddr::equalTo");
       return false;
     }
   
-    StackPtr(LocationKind kind) : Location(kind) {}
+    StackAddr(LocationKind kind) : Location(kind) {}
   };
 
-  typedef StackPtr FramePtr;
+  typedef StackAddr FrameAddr;
 
   class BAddr : public Location {
   public:
@@ -204,11 +204,11 @@ namespace AAM {
   private:
     strvar strname;
     var name;
-    std::shared_ptr<FramePtr> fp;
+    std::shared_ptr<FrameAddr> fp;
     
   public:
-    BindAddr(strvar strname, std::shared_ptr<FramePtr> fp) : BAddr(KBindAddr), strname(strname), name(nullptr), fp(fp) {};
-    BindAddr(var name, std::shared_ptr<FramePtr> fp) : BAddr(KBindAddr), strname(""), name(name), fp(fp) {};
+    BindAddr(strvar strname, std::shared_ptr<FrameAddr> fp) : BAddr(KBindAddr), strname(strname), name(nullptr), fp(fp) {};
+    BindAddr(var name, std::shared_ptr<FrameAddr> fp) : BAddr(KBindAddr), strname(""), name(name), fp(fp) {};
   
     static bool classof(const Location* loc) {
       return loc->getKind() == KBindAddr;
@@ -238,6 +238,10 @@ namespace AAM {
    *               | LocationValue
    *               | FuncValue
    *               | PrimValue
+   *
+   * PrimValue = PrimValue
+   *           | IntValue
+   *           | BotValue
    */
   class AbstractValue {
   public:
@@ -247,6 +251,7 @@ namespace AAM {
       KFuncV,
       KPrimV,
         KIntV,
+        KBotV,
       KPrimVEnd
     };
     
@@ -257,6 +262,7 @@ namespace AAM {
         case KFuncV: return "FuncV";
         case KPrimV: return "PrimV";
         case KIntV: return "IntV";
+        case KBotV: return "BotV";
         default: return "Unknown";
       }
     }
@@ -291,15 +297,15 @@ namespace AAM {
     strvar _lhs;
     var lhs;
     Instruction* inst;
-    std::shared_ptr<FramePtr> framePtr;
-    std::shared_ptr<StackPtr> stackPtr;
+    std::shared_ptr<FrameAddr> frameAddr;
+    std::shared_ptr<StackAddr> stackAddr;
     
   public:
-    Cont(strvar _lhs, Instruction* inst, std::shared_ptr<FramePtr> framePtr, std::shared_ptr<StackPtr> stackPtr)
-      : AbstractValue(KContV), _lhs(_lhs), lhs(nullptr), inst(inst), framePtr(framePtr), stackPtr(stackPtr) {}
+    Cont(strvar _lhs, Instruction* inst, std::shared_ptr<FrameAddr> frameAddr, std::shared_ptr<StackAddr> stackAddr)
+      : AbstractValue(KContV), _lhs(_lhs), lhs(nullptr), inst(inst), frameAddr(frameAddr), stackAddr(stackAddr) {}
     
-    Cont(var lhs, Instruction* inst, std::shared_ptr<FramePtr> framePtr, std::shared_ptr<StackPtr> stackPtr)
-      : AbstractValue(KContV), _lhs(""), lhs(lhs), inst(inst), framePtr(framePtr), stackPtr(stackPtr) {}
+    Cont(var lhs, Instruction* inst, std::shared_ptr<FrameAddr> frameAddr, std::shared_ptr<StackAddr> stackAddr)
+      : AbstractValue(KContV), _lhs(""), lhs(lhs), inst(inst), frameAddr(frameAddr), stackAddr(stackAddr) {}
     
     static bool classof(const AbstractValue* v) {
       return v->getKind() == KContV;
@@ -314,16 +320,16 @@ namespace AAM {
         seed = hash_combine(seed, hash_value(lhs));
       }
       seed = hash_combine(seed, hash_value(inst));
-      seed = hash_combine(seed, framePtr->hashValue());
-      seed = hash_combine(seed, stackPtr->hashValue());
+      seed = hash_combine(seed, frameAddr->hashValue());
+      seed = hash_combine(seed, stackAddr->hashValue());
       return seed;
     }
     
     strvar getStrLhs() { return _lhs; }
     var getLhs() { return lhs; }
     Instruction* getInst() { return inst; }
-    std::shared_ptr<FramePtr> getFramePtr() { return framePtr; }
-    std::shared_ptr<StackPtr> getStackPtr() { return stackPtr; }
+    std::shared_ptr<FrameAddr> getFrameAddr() { return frameAddr; }
+    std::shared_ptr<StackAddr> getStackAddr() { return stackAddr; }
 
   protected:
     virtual bool equalTo(const AbstractValue& that) const override {
@@ -333,8 +339,8 @@ namespace AAM {
       return this->_lhs == newThat->_lhs &&
              this->lhs == newThat->lhs &&
              this->inst == newThat->inst && // TODO: this->inst==that->inst or *this->inst==*that->inst ?
-             *this->framePtr == *newThat->framePtr &&
-             *this->stackPtr == *newThat->stackPtr;
+             *this->frameAddr == *newThat->frameAddr &&
+             *this->stackAddr == *newThat->stackAddr;
     }
   };
 
@@ -476,6 +482,35 @@ namespace AAM {
       return val.eq(newThat->val);
     }
   };
+  
+  class BotValue : public PrimValue {
+  public:
+    typedef std::shared_ptr<BotValue> BotValuePtrType;
+    //TODO: make sure the constructor only called once.
+    BotValue() : PrimValue(KBotV) {}
+  
+    static BotValuePtrType getInstance() {
+      static BotValuePtrType instance = std::make_shared<BotValue>();
+      return instance;
+    }
+    static bool classof(const AbstractValue* v) {
+      return v->getKind() >= KBotV;
+    }
+  
+    virtual size_t hashValue() override {
+      size_t seed = 0;
+      seed = hash_combine(seed, hash_value("BotValue"));
+      return seed;
+    }
+
+  protected:
+    virtual bool equalTo(const AbstractValue& that) const override {
+      return isa<BotValue>(&that);
+    }
+    
+  };
+  
+  ///////////////////////////////////////////
 
   template<class K, class V, class Less>
   class Store {
@@ -490,6 +525,12 @@ namespace AAM {
     size_t size() const {
       return m.size();
     }
+    
+    std::shared_ptr<Store<K,V,Less>> copy() {
+      auto newMap = m;
+      auto newStore = std::make_shared<Store<K,V,Less>>(newMap);
+      return newStore;
+    };
     
     Optional<Store<K,V,Less>::Val> lookup(Store<K,V,Less>::Key key) {
       auto it = m.find(key);
