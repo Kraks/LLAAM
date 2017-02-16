@@ -12,6 +12,8 @@
 namespace ConcreteAAM {
   using namespace AAM;
   
+  #define MIN_ALLOC 4;
+  
   class ConcreteHeapAddr : public HeapAddr {
   public:
     ConcreteHeapAddr() : HeapAddr(KConcreteHeapAddr) {
@@ -184,22 +186,44 @@ namespace ConcreteAAM {
       }
       else if (isa<StoreInst>(inst)) {
         StoreInst* storeInst = dyn_cast<StoreInst>(inst);
+        
+        storeInst->dump();
+        errs() << "store num oprands: " << storeInst->getNumOperands() << "\n";
+        errs() << "op(0): ";
+        storeInst->getOperand(0)->print(errs());
+        errs() << ". type: " << storeInst->getOperand(0)->getType()->getTypeID();
+        errs() << "\nop(1): ";
+        storeInst->getOperand(1)->print(errs());
+        errs() << "\n";
+        
+        Value* op0 = storeInst->getOperand(0);
+        Value* op1 = storeInst->getOperand(1);
+        
+        
       }
       else if (isa<AllocaInst>(inst)) {
         AllocaInst* allocaInst = dyn_cast<AllocaInst>(inst);
+        allocaInst->dump();
         Type* allocaType = allocaInst->getAllocatedType();
+        // The typeByteSize is the number of bytes, for example, int_32 is 4 bytes.
+        // For now, assuming that the only type is int_32, and we can set the minimum allocation size in store to 4 byte
         uint64_t typeByteSize = ConcreteState::getModule()->getDataLayout().getTypeAllocSize(allocaType);
         assert(typeByteSize > 0);
+  
+        // TODO: If there are other primitive types (for example, byte, short or long),
+        // TODO: then we need to set the minimum allocation size to 1 byte
+        // TODO: and also handle the cast operation.
+        uint64_t nAlloc = typeByteSize / MIN_ALLOC;
+        
         bool isArrayAlloc = allocaInst->isArrayAllocation();
         Value* arraySize = allocaInst->getArraySize(); //TODO: allocate array size
+        if (isArrayAlloc && isa<ConstantInt>(arraySize)) { errs() << "array size is constant\n"; }
         
-        if (isArrayAlloc && isa<ConstantInt>(arraySize)) {
-          errs() << "array size is constant\n";
-        }
-        
+        /*
         errs() << "allocaInst num oprands: " << allocaInst->getNumOperands() << "\n";
         errs() << "allocaInst array alloc? " << allocaInst->isArrayAllocation() << "\n";
         errs() << "allocaInst alloca size: "  << allocaInst->getArraySize() << "\n";
+        */
         
         auto store = this->getStore()->getStore();
         auto succ = this->getStore()->getSucc();
@@ -208,15 +232,15 @@ namespace ConcreteAAM {
         // aTop is the stack pointer in current state.
         auto aTop = this->getCont();
         auto bot = BotValue::getInstance();
-        auto addrs = ConcreteStackAddr::allocate(typeByteSize);
+        auto addrs = ConcreteStackAddr::allocate(nAlloc);
         
         auto newStore = store->copy();
         auto locVal = LocationValue::makeLocationValue(addrs->front());
-        newStore->inplaceUpdate(addrsOf(inst, this->getEnv(), this->getStore(), *ConcreteState::getModule()), locVal);
         for (auto& addr : *addrs) {
           newStore->inplaceUpdate(addr, bot);
         }
         assert(newStore->size() == (store->size() + addrs->size()));
+        newStore->inplaceUpdate(addrsOf(inst, this->getEnv(), this->getStore(), *ConcreteState::getModule()), locVal);
         
         auto newSucc = succ->copy();
         for (unsigned long i = 0; i < addrs->size(); i++) {
@@ -241,6 +265,7 @@ namespace ConcreteAAM {
         auto newStackPtr = addrs->front();
         auto nextStmt = Stmt::makeStmt(nextInst);
         auto newState = ConcreteState::makeState(nextStmt, this->getEnv(), newConf, newStackPtr);
+        return newState;
       }
       else if (isa<BranchInst>(inst)) {
         BranchInst* branchInst = dyn_cast<BranchInst>(inst);

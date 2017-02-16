@@ -257,8 +257,11 @@ namespace {
     
     static void test3(Module& M) {
       std::shared_ptr<ConcreteState> state = ConcreteState::inject(M, "main");
-      auto nextStaate = state->next();
-      
+      auto nextState = state->next();
+      nextState = nextState->next();
+      nextState = nextState->next();
+      nextState = nextState->next();
+      nextState = nextState->next();
     }
 
     bool runOnModule(Module& M) override {
