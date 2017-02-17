@@ -659,6 +659,7 @@ namespace AAM {
     void print() {
       errs() << "Store summary[" << size() << "]:\n";
       for (const auto& pair : m) {
+        errs() << "\t";
         pair.first->print();
         errs() << " --> ";
         pair.second->print();

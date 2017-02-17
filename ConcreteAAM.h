@@ -312,7 +312,8 @@ namespace ConcreteAAM {
           newStore->inplaceUpdate(addr, bot);
         }
         assert(newStore->size() == (store->size() + addrs->size()));
-        newStore->inplaceUpdate(addrsOf(inst, this->getEnv(), this->getConf(), *ConcreteState::getModule()), locVal);
+        auto destAddr = std::make_shared<BindAddr>(inst, this->getEnv());
+        newStore->inplaceUpdate(destAddr, locVal);
         
         auto newSucc = succ->copy();
         for (unsigned long i = 0; i < addrs->size(); i++) {

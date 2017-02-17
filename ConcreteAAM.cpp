@@ -18,6 +18,7 @@ namespace ConcreteAAM {
       state = nextState;
       nextState = state->next();
     }
+    state->getConf()->getStore()->print();
   }
   
   /********  Auxiliary functions  ********/
@@ -53,16 +54,41 @@ namespace ConcreteAAM {
                                     std::shared_ptr<ConcreteConf> conf,
                                     Module& M) {
     Type* lhsType = lhs->getType();
-    std::string var = lhs->getName();
-    if (M.getGlobalVariable(var)) {
-      return std::make_shared<BindAddr>(lhs, ConcreteStackAddr::initFp());
+    errs() << "lhsType: " << lhsType->getTypeID() << ", ";
+    lhsType->print(errs());
+    errs() << "\n";
+    
+    if (lhsType->isIntegerTy()) {
+      std::string var = lhs->getName();
+      if (M.getGlobalVariable(var)) {
+        return std::make_shared<BindAddr>(lhs, ConcreteStackAddr::initFp());
+      }
+      else {
+        auto addr = std::make_shared<BindAddr>(lhs, fp);
+        errs() << "make a new bind addr: ";
+        addr->print();
+        errs() << "\n";
+        return addr;
+      }
+    }
+    else if (lhsType->isPointerTy()){
+      std::shared_ptr<ConcreteStore> store = conf->getStore();
+      std::shared_ptr<Location> bind = std::make_shared<BindAddr>(lhs, fp);
+      auto result = store->lookup(bind);
+      if (result.hasValue()) {
+        auto val = result.getValue();
+        assert(isa<LocationValue>(*val) && "The result from store should be a Location");
+        auto newVal = std::static_pointer_cast<LocationValue>(val);
+        return newVal->getLocation();
+      }
+      else {
+        assert(false && "Unbound variable");
+        std::shared_ptr<Location> mt;
+        return mt;
+      }
     }
     else {
-      auto addr = std::make_shared<BindAddr>(lhs, fp);
-      errs() << "make a new bind addr: ";
-      addr->print();
-      errs() << "\n";
-      return addr;
+      assert(false && "TODO");
     }
     
     /*
