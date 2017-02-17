@@ -520,6 +520,9 @@ namespace AAM {
     }
   };
   
+  /**
+   * Assume that the IntValue is the only type in the system.
+   */
   class IntValue : public PrimValue {
   private:
     APInt val;
@@ -527,6 +530,10 @@ namespace AAM {
   public:
     typedef std::shared_ptr<IntValue> IntValuePtrType;
     IntValue(APInt val) : PrimValue(KIntV), val(val) {}
+    
+    APInt& getValue() {
+      return val;
+    }
     
     static bool classof(const AbstractValue* v) {
       return v->getKind() == KIntV;

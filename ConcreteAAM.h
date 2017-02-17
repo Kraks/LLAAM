@@ -320,7 +320,8 @@ namespace ConcreteAAM {
         AllocaInst* allocaInst = dyn_cast<AllocaInst>(inst);
         Type* allocaType = allocaInst->getAllocatedType();
         // The typeByteSize is the number of bytes, for example, int_32 is 4 bytes.
-        // For now, assuming that the only type is int_32, and we can set the minimum allocation size in store to 4 byte
+        // Note: For now, assuming that the only type is int_32, and we can set the
+        // minimum allocation size in store to 4 byte.
         uint64_t typeByteSize = ConcreteState::getModule()->getDataLayout().getTypeAllocSize(allocaType);
         assert(typeByteSize > 0);
   
@@ -387,6 +388,50 @@ namespace ConcreteAAM {
       }
       else if (isa<GetElementPtrInst>(inst)) {
         
+      }
+      else if (Instruction::Add == inst->getOpcode()) {
+        Value* lhs = inst->getOperand(0);
+        Value* rhs = inst->getOperand(1);
+        APInt lhs_v;
+        APInt rhs_v;
+        
+        assert(lhs->getType()->isIntegerTy());
+        assert(rhs->getType()->isIntegerTy());
+        
+        if (ConstantInt* lhs_ci = dyn_cast<ConstantInt>(lhs)) {
+          lhs_v = lhs_ci->getValue();
+        }
+        else {
+          auto addr = addrsOf(lhs, this->getEnv(), this->getConf(), *ConcreteState::getModule());
+          auto valOpt = this->getConf()->getStore()->lookup(addr);
+          assert(valOpt.hasValue());
+          auto val = valOpt.getValue();
+          assert(isa<IntValue>(&*val));
+          auto intVal = dyn_cast<IntValue>(&*val);
+          lhs_v = intVal->getValue();
+        }
+        
+        if (ConstantInt* rhs_ci = dyn_cast<ConstantInt>(rhs)) {
+          rhs_v = rhs_ci->getValue();
+        }
+        else {
+          auto addr = addrsOf(rhs, this->getEnv(), this->getConf(), *ConcreteState::getModule());
+          auto valOpt = this->getConf()->getStore()->lookup(addr);
+          assert(valOpt.hasValue());
+          auto val = valOpt.getValue();
+          assert(isa<IntValue>(&*val));
+          auto intVal = dyn_cast<IntValue>(&*val);
+          rhs_v = intVal->getValue();
+        }
+        
+        auto result = lhs_v + rhs_v;
+        auto resultVal = IntValue::makeInt(result);
+        auto destAddr = addrsOf(inst, this->getEnv(), this->getConf(), *ConcreteState::getModule());
+        auto newStore = this->getConf()->getStore()->copy();
+        newStore->inplaceUpdate(destAddr, resultVal);
+        auto newConf = ConcreteConf::makeConf(newStore, this->getConf()->getSucc(), this->getConf()->getPred());
+        auto newState = ConcreteState::makeState(nextStmt, this->getEnv(), newConf, this->getCont());
+        return newState;
       }
       else {
         
