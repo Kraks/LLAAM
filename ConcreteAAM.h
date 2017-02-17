@@ -176,6 +176,7 @@ namespace ConcreteAAM {
       // TODO: implement the real next()
       Instruction* inst = getControl()->getInst();
       Instruction* nextInst = getSyntacticNextInst(inst);
+      auto nextStmt = Stmt::makeStmt(nextInst);
       errs() << "Current state[" << myId << "] ";
       inst->dump();
       
@@ -227,10 +228,15 @@ namespace ConcreteAAM {
         
         if (ConstantInt* op0_ci = dyn_cast<ConstantInt>(op0)) {
           auto val = evalAtom(op0_ci, getEnv(), getStore(), *ConcreteState::getModule());
-          
+          auto addr = addrsOf(op1, this->getEnv(), this->getStore(), *ConcreteState::getModule());
+          auto newStore = this->getStore()->getStore()->copy();
+          newStore->inplaceUpdate(addr, val);
+          auto newConf = ConcreteConf::makeConf(newStore, this->getStore()->getSucc(), this->getStore()->getPred());
+          auto newState = ConcreteState::makeState(nextStmt, this->getEnv(), newConf, this->getCont());
+          return newState;
         }
         else {
-          
+          errs() << "store a vairable to another\n";
         }
       }
       else if (isa<AllocaInst>(inst)) {
@@ -294,7 +300,6 @@ namespace ConcreteAAM {
         
         auto newConf = ConcreteConf::makeConf(newStore, newSucc, newPred);
         auto newStackPtr = addrs->front();
-        auto nextStmt = Stmt::makeStmt(nextInst);
         auto newState = ConcreteState::makeState(nextStmt, this->getEnv(), newConf, newStackPtr);
         return newState;
       }
