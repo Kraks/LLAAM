@@ -151,7 +151,7 @@ namespace AAM {
       return hash_value("HeapAddr");
     }
     
-    virtual void print() const {
+    virtual void print() const override {
       assert(false && "should not call HeapAddr::print");
     }
     
@@ -611,16 +611,6 @@ namespace AAM {
       return None;
     }
     
-    // Immutable update
-    /*
-    Store<K,V,Less> update(Store<K,V,Less>::Key key, Store<K,V,Less>::Val val) {
-      auto newMap = m;
-      newMap[key] = val;
-      Store<K,V,Less> newStore(newMap);
-      return newStore;
-    }
-    */
-    
     std::shared_ptr<Store<K,V,Less>> update(Store<K,V,Less>::Key key, Store<K,V,Less>::Val val) {
       auto newMap = m;
       newMap[key] = val;
@@ -632,16 +622,6 @@ namespace AAM {
       m[key] = val;
       return *this;
     }
-    
-    // Immutable remove
-    /*
-    Store<K,V,Less> remove(Store<K,V,Less>::Key key) {
-      auto newMap = m;
-      newMap.erase(key);
-      Store<K,V,Less> newStore(newMap);
-      return newStore;
-    };
-    */
     
     std::shared_ptr<Store<K,V,Less>> remove(Store<K,V,Less>::Key key) {
       auto newMap = m;
@@ -669,11 +649,21 @@ namespace AAM {
     
     virtual size_t hashValue() {
       size_t seed = 0;
-      for (const auto& pair: m) {
+      for (const auto& pair : m) {
         seed = hash_combine(seed, pair.first->hashValue());
         seed = hash_combine(seed, pair.second->hashValue());
       }
       return seed;
+    }
+    
+    void print() {
+      errs() << "Store summary[" << size() << "]:\n";
+      for (const auto& pair : m) {
+        pair.first->print();
+        errs() << " --> ";
+        pair.second->print();
+        errs() << "\n";
+      }
     }
   
   private:

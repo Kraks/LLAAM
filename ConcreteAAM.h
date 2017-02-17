@@ -182,6 +182,9 @@ namespace ConcreteAAM {
     }
     
     StatePtrType next() {
+      // Core instruction:
+      //    StoreInst, LoadInst, AllocaInst
+      //    CallInst malloc, CallInst free
       // TODO: implement the real next()
       Instruction* inst = getControl()->getInst();
       Instruction* nextInst = getSyntacticNextInst(inst);
@@ -222,17 +225,22 @@ namespace ConcreteAAM {
         LoadInst* loadInst = dyn_cast<LoadInst>(inst);
         Value* op0 = loadInst->getOperand(0);
         auto destAddr = addrsOf(loadInst, this->getEnv(), this->getConf(), *ConcreteState::getModule());
+        
         errs() << "load num oprands: " << loadInst->getNumOperands() << "\n";
         errs() << "op(0): ";
         op0->print(errs());
         errs() << "\n";
+        
         auto addr = addrsOf(op0, this->getEnv(), this->getConf(), *ConcreteState::getModule());
         auto valOpt = this->getConf()->getStore()->lookup(addr);
         assert(valOpt.hasValue());
         auto val = valOpt.getValue();
         
         auto newStore = this->getConf()->getStore()->copy();
-        
+        newStore->inplaceUpdate(destAddr, val);
+        auto newConf = ConcreteConf::makeConf(newStore, this->getConf()->getSucc(), this->getConf()->getPred());
+        auto newState = ConcreteState::makeState(nextStmt, this->getEnv(), newConf, this->getCont());
+        return newState;
       }
       else if (isa<StoreInst>(inst)) {
         StoreInst* storeInst = dyn_cast<StoreInst>(inst);
@@ -248,19 +256,23 @@ namespace ConcreteAAM {
         storeInst->getOperand(1)->print(errs());
         errs() << ". type: " << storeInst->getOperand(1)->getType()->getTypeID();
         errs() << "\n";
-        
+  
+        auto destAddr = addrsOf(op1, this->getEnv(), this->getConf(), *ConcreteState::getModule());
+        auto newStore = this->getConf()->getStore()->copy();
         if (ConstantInt* op0_ci = dyn_cast<ConstantInt>(op0)) {
           auto val = evalAtom(op0_ci, getEnv(), getConf(), *ConcreteState::getModule());
-          auto addr = addrsOf(op1, this->getEnv(), this->getConf(), *ConcreteState::getModule());
-          auto newStore = this->getConf()->getStore()->copy();
-          newStore->inplaceUpdate(addr, val);
-          auto newConf = ConcreteConf::makeConf(newStore, this->getConf()->getSucc(), this->getConf()->getPred());
-          auto newState = ConcreteState::makeState(nextStmt, this->getEnv(), newConf, this->getCont());
-          return newState;
+          newStore->inplaceUpdate(destAddr, val);
         }
         else {
-          errs() << "store a vairable to another\n";
+          auto fromAddr = addrsOf(op0, getEnv(), getConf(), *ConcreteState::getModule());
+          auto fromValOpt = this->getConf()->getStore()->lookup(fromAddr);
+          assert(fromValOpt.hasValue());
+          auto fromVal = fromValOpt.getValue();
+          newStore->inplaceUpdate(destAddr, fromVal);
         }
+        auto newConf = ConcreteConf::makeConf(newStore, this->getConf()->getSucc(), this->getConf()->getPred());
+        auto newState = ConcreteState::makeState(nextStmt, this->getEnv(), newConf, this->getCont());
+        return newState;
       }
       else if (isa<AllocaInst>(inst)) {
         AllocaInst* allocaInst = dyn_cast<AllocaInst>(inst);
@@ -272,7 +284,7 @@ namespace ConcreteAAM {
   
         // TODO: If there are other primitive types (for example, byte, short or long),
         // TODO: then we need to set the minimum allocation size to 1 byte
-        // TODO: and also handle the cast operation.
+        // TODO: and also handle the cast operations.
         uint64_t nAlloc = typeByteSize / MIN_ALLOC;
         
         bool isArrayAlloc = allocaInst->isArrayAllocation();
@@ -329,7 +341,7 @@ namespace ConcreteAAM {
       else if (isa<BranchInst>(inst)) {
         BranchInst* branchInst = dyn_cast<BranchInst>(inst);
       }
-      else if (isa<SwitchInst>(inst)) {
+      else if (isa<GetElementPtrInst>(inst)) {
         
       }
       else {
