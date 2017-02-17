@@ -221,13 +221,17 @@ namespace ConcreteAAM {
           //TODO
         }
       }
+      else if (isa<InvokeInst>(inst)) {
+        
+      }
       else if (isa<CallInst>(inst)) {
-        //TODO: invoke inst
         CallInst* callInst = dyn_cast<CallInst>(inst);
-        Function* function = callInst->getFunction();
+        Function* function = callInst->getCalledFunction();
         std::string fname = function->getName();
+        auto& args = function->getArgumentList();
         errs() << "function name: " << fname << "\n";
-        //TODO: malloc/free
+        errs() << "op num: " << callInst->getNumOperands() << "\n";
+        
         if (fname == "malloc") {
           
         }
@@ -235,7 +239,7 @@ namespace ConcreteAAM {
           
         }
         else {
-          
+          auto entry = getEntry(*function);
         }
       }
       else if (isa<LoadInst>(inst)) {
