@@ -177,7 +177,7 @@ namespace AAM {
       return hash_value("StackAddr");
     }
     
-    virtual void print() const {
+    virtual void print() const override {
       assert(false && "should not call StackAddr::print");
     }
     
@@ -204,7 +204,7 @@ namespace AAM {
       return hash_value("BAddr");
     }
     
-    virtual void print() const {
+    virtual void print() const override {
       assert(false && "should not call BAddr::print");
     }
 
@@ -775,7 +775,7 @@ namespace AAM {
     
     CPtrType getControl() { return cPtr; }
     EPtrType getEnv() { return ePtr; }
-    SPtrType getStore() { return sPtr; }
+    SPtrType getConf() { return sPtr; }
     KPtrType getCont() { return kPtr; }
     
     // TODO: shared_ptr as covariant return type

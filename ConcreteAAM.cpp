@@ -58,8 +58,11 @@ namespace ConcreteAAM {
       return std::make_shared<BindAddr>(lhs, ConcreteStackAddr::initFp());
     }
     else {
-      errs() << "make a new bind addr\n";
-      return std::make_shared<BindAddr>(lhs, fp);
+      auto addr = std::make_shared<BindAddr>(lhs, fp);
+      errs() << "make a new bind addr: ";
+      addr->print();
+      errs() << "\n";
+      return addr;
     }
     
     /*
