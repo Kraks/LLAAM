@@ -224,8 +224,7 @@ namespace ConcreteAAM {
       else if (isa<LoadInst>(inst)) {
         LoadInst* loadInst = dyn_cast<LoadInst>(inst);
         Value* op0 = loadInst->getOperand(0);
-        //TODO: refactor how to build BindAddr
-        auto destAddr = std::make_shared<BindAddr>(loadInst, this->getEnv());
+        auto destAddr = BindAddr::makeBindAddr(loadInst, this->getEnv());
         
         /*
         errs() << "load num oprands: " << loadInst->getNumOperands() << "\n";
@@ -339,8 +338,7 @@ namespace ConcreteAAM {
           newStore->inplaceUpdate(addr, bot);
         }
         assert(newStore->size() == (store->size() + addrs->size()));
-        //TODO: refactor how to build this BindAddr
-        auto destAddr = std::make_shared<BindAddr>(inst, this->getEnv());
+        auto destAddr = BindAddr::makeBindAddr(inst, this->getEnv());
         newStore->inplaceUpdate(destAddr, locVal);
         
         auto newSucc = succ->copy();

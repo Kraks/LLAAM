@@ -225,11 +225,17 @@ namespace AAM {
     std::shared_ptr<FrameAddr> fp;
     
   public:
+    typedef std::shared_ptr<BindAddr> BindAddrPtrType;
     BindAddr(strvar strname, std::shared_ptr<FrameAddr> fp) : BAddr(KBindAddr), strname(strname), name(nullptr), fp(fp) {};
     BindAddr(var name, std::shared_ptr<FrameAddr> fp) : BAddr(KBindAddr), strname(""), name(name), fp(fp) {};
   
     static bool classof(const Location* loc) {
       return loc->getKind() == KBindAddr;
+    }
+    
+    static BindAddrPtrType makeBindAddr(var name, std::shared_ptr<FrameAddr> fp) {
+      auto ba = std::make_shared<BindAddr>(name, fp);
+      return ba;
     }
     
     virtual void print() const override {
