@@ -16,12 +16,29 @@ namespace ConcreteAAM {
   
   class ConcreteHeapAddr : public HeapAddr {
   public:
+    typedef std::shared_ptr<ConcreteHeapAddr> ConcreteHeapAddrPtrType;
+    
     ConcreteHeapAddr() : HeapAddr(KConcreteHeapAddr) {
       myId = id++;
     }
     
+    static ConcreteHeapAddrPtrType makeConcreteHeapAddr() {
+      ConcreteHeapAddrPtrType h = std::make_shared<ConcreteHeapAddr>();
+      return h;
+    }
+    
     static bool classof(const Location* loc) {
       return loc->getKind() == KConcreteHeapAddr;
+    }
+    
+    static std::shared_ptr<std::vector<ConcreteHeapAddrPtrType>> allocate(size_t n) {
+      std::shared_ptr<std::vector<ConcreteHeapAddrPtrType>> v = std::make_shared<std::vector<ConcreteHeapAddrPtrType>>();
+      for (int i = 0; i < n; i++) {
+        ConcreteHeapAddrPtrType s = makeConcreteHeapAddr();
+        v->push_back(s);
+      }
+      assert(v->size() == n);
+      return v;
     }
     
     virtual bool equalTo(const Location& that) const override {
@@ -61,11 +78,11 @@ namespace ConcreteAAM {
     }
     
     static ConcreteStackAddrPtrType initFp() {
-      static ConcreteStackAddrPtrType initFp = makeConcreteStackAdd();
+      static ConcreteStackAddrPtrType initFp = makeConcreteStackAddr();
       return initFp;
     }
     
-    static ConcreteStackAddrPtrType makeConcreteStackAdd() {
+    static ConcreteStackAddrPtrType makeConcreteStackAddr() {
       ConcreteStackAddrPtrType s = std::make_shared<ConcreteStackAddr>();
       return s;
     }
@@ -73,7 +90,7 @@ namespace ConcreteAAM {
     static std::shared_ptr<std::vector<ConcreteStackAddrPtrType>> allocate(size_t n) {
       std::shared_ptr<std::vector<ConcreteStackAddrPtrType>> v = std::make_shared<std::vector<ConcreteStackAddrPtrType>>();
       for (int i = 0; i < n; i++) {
-        ConcreteStackAddrPtrType s = makeConcreteStackAdd();
+        ConcreteStackAddrPtrType s = makeConcreteStackAddr();
         v->push_back(s);
       }
       assert(v->size() == n);

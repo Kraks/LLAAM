@@ -47,7 +47,6 @@ namespace ConcreteAAM {
     return locVal;
     // If val is a primitive operation, do the operation
     // If val is a sizeof operation
-    
   }
   
   std::shared_ptr<Location> addrsOf(Value* lhs,
