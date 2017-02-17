@@ -12,6 +12,7 @@ namespace ConcreteAAM {
   unsigned long long ConcreteState::id = 0;
   
   void run(ConcreteState::StatePtrType s) {
+    errs() << ConcreteState::getModule()->getSourceFileName() << "\n";
     auto state = s;
     auto nextState = state->next();
     while (!(*state == *nextState)) {
@@ -74,6 +75,7 @@ namespace ConcreteAAM {
     else if (lhsType->isPointerTy()){
       std::shared_ptr<ConcreteStore> store = conf->getStore();
       std::shared_ptr<Location> bind = std::make_shared<BindAddr>(lhs, fp);
+      
       auto result = store->lookup(bind);
       if (result.hasValue()) {
         auto val = result.getValue();

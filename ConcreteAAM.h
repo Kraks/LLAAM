@@ -226,10 +226,12 @@ namespace ConcreteAAM {
         Value* op0 = loadInst->getOperand(0);
         auto destAddr = addrsOf(loadInst, this->getEnv(), this->getConf(), *ConcreteState::getModule());
         
+        /*
         errs() << "load num oprands: " << loadInst->getNumOperands() << "\n";
         errs() << "op(0): ";
         op0->print(errs());
         errs() << "\n";
+        */
         
         auto addr = addrsOf(op0, this->getEnv(), this->getConf(), *ConcreteState::getModule());
         auto valOpt = this->getConf()->getStore()->lookup(addr);
@@ -245,8 +247,11 @@ namespace ConcreteAAM {
       else if (isa<StoreInst>(inst)) {
         StoreInst* storeInst = dyn_cast<StoreInst>(inst);
         Value* op0 = storeInst->getOperand(0);
+        Type* op0_ty = op0->getType();
         Value* op1 = storeInst->getOperand(1);
+        Type* op1_ty = op1->getType();
         
+        /*
         errs() << "store num oprands: " << storeInst->getNumOperands() << "\n";
         errs() << "op(0): ";
         storeInst->getOperand(0)->print(errs());
@@ -256,20 +261,34 @@ namespace ConcreteAAM {
         storeInst->getOperand(1)->print(errs());
         errs() << ". type: " << storeInst->getOperand(1)->getType()->getTypeID();
         errs() << "\n";
-  
+        */
+        
         auto destAddr = addrsOf(op1, this->getEnv(), this->getConf(), *ConcreteState::getModule());
+        errs() << "dest: ";
+        destAddr->print();
+        errs() << "\n";
+        
         auto newStore = this->getConf()->getStore()->copy();
-        if (ConstantInt* op0_ci = dyn_cast<ConstantInt>(op0)) {
-          auto val = evalAtom(op0_ci, getEnv(), getConf(), *ConcreteState::getModule());
+        
+        if (op0_ty->isIntegerTy()) {
+          if (ConstantInt* op0_ci = dyn_cast<ConstantInt>(op0)) {
+            auto val = evalAtom(op0_ci, getEnv(), getConf(), *ConcreteState::getModule());
+            newStore->inplaceUpdate(destAddr, val);
+          }
+          else {
+            auto fromAddr = addrsOf(op0, getEnv(), getConf(), *ConcreteState::getModule());
+            auto fromValOpt = this->getConf()->getStore()->lookup(fromAddr);
+            assert(fromValOpt.hasValue());
+            auto val = fromValOpt.getValue();
+            newStore->inplaceUpdate(destAddr, val);
+          }
+        }
+        else if (op0_ty->isPointerTy()) {
+          auto fromAddr = addrsOf(op0, getEnv(), getConf(), *ConcreteState::getModule());
+          auto val = LocationValue::makeLocationValue(fromAddr);
           newStore->inplaceUpdate(destAddr, val);
         }
-        else {
-          auto fromAddr = addrsOf(op0, getEnv(), getConf(), *ConcreteState::getModule());
-          auto fromValOpt = this->getConf()->getStore()->lookup(fromAddr);
-          assert(fromValOpt.hasValue());
-          auto fromVal = fromValOpt.getValue();
-          newStore->inplaceUpdate(destAddr, fromVal);
-        }
+        
         auto newConf = ConcreteConf::makeConf(newStore, this->getConf()->getSucc(), this->getConf()->getPred());
         auto newState = ConcreteState::makeState(nextStmt, this->getEnv(), newConf, this->getCont());
         return newState;
@@ -285,7 +304,8 @@ namespace ConcreteAAM {
         // TODO: If there are other primitive types (for example, byte, short or long),
         // TODO: then we need to set the minimum allocation size to 1 byte
         // TODO: and also handle the cast operations.
-        uint64_t nAlloc = typeByteSize / MIN_ALLOC;
+        //uint64_t nAlloc = typeByteSize / MIN_ALLOC;
+        uint64_t nAlloc = 1;
         
         bool isArrayAlloc = allocaInst->isArrayAllocation();
         Value* arraySize = allocaInst->getArraySize(); //TODO: allocate array size
