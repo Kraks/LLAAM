@@ -15,6 +15,7 @@
 #include <map>
 #include <vector>
 #include <memory>
+#include <ostream>
 #include <algorithm>
 #include <unordered_set>
 #include <unordered_map>
@@ -27,9 +28,6 @@
 using namespace llvm;
 
 /* TODO
- * hashValue for values
- * inequality for all
- * toString for all
  */
 
 namespace AAM {
@@ -92,7 +90,15 @@ namespace AAM {
     friend bool operator==(const Location& a, const Location& b) {
       return a.equalTo(b);
     }
-  
+    
+    friend bool operator!=(const Location& a, const Location& b) {
+      return !(a == b);
+    }
+    
+    virtual void print() const {
+      assert(false && "should not call Location::print");
+    }
+    
     virtual size_t hashValue() const {
       assert(false && "should not call Location::hashValue");
       return hash_value("Location");
@@ -145,6 +151,10 @@ namespace AAM {
       return hash_value("HeapAddr");
     }
     
+    virtual void print() const {
+      assert(false && "should not call HeapAddr::print");
+    }
+    
   protected:
     HeapAddr(LocationKind kind) : Location(kind) {}
     
@@ -165,6 +175,10 @@ namespace AAM {
     virtual size_t hashValue() const override {
       assert(false && "should not call StackAddr::hashValue");
       return hash_value("StackAddr");
+    }
+    
+    virtual void print() const {
+      assert(false && "should not call StackAddr::print");
     }
     
   protected:
@@ -189,6 +203,10 @@ namespace AAM {
       assert(false && "should not call BAddr::hashValue");
       return hash_value("BAddr");
     }
+    
+    virtual void print() const {
+      assert(false && "should not call BAddr::print");
+    }
 
   protected:
     BAddr(LocationKind kind) : Location(kind) {}
@@ -212,6 +230,16 @@ namespace AAM {
   
     static bool classof(const Location* loc) {
       return loc->getKind() == KBindAddr;
+    }
+    
+    virtual void print() const override {
+      errs() << "BindAddr[";
+      if (strname != "") { errs() << strname; }
+      else if (name->hasName()) { errs() << name->getName(); }
+      else { name->print(errs(), false); }
+      errs() << ",";
+      fp->print();
+      errs() << "]";
     }
   
     virtual size_t hashValue() const override {
@@ -275,9 +303,17 @@ namespace AAM {
       return a.equalTo(b);
     }
     
+    friend bool operator!=(const AbstractValue& a, const AbstractValue& b) {
+      return !(a == b);
+    }
+    
     virtual size_t hashValue() {
       assert(false && "should not call AbstractValue::hashValue");
       return hash_value("AbstractValue");
+    }
+    
+    virtual void print() const {
+      assert(false && "should not call AbstractValue::print");
     }
     
   private:
@@ -325,6 +361,20 @@ namespace AAM {
       return seed;
     }
     
+    virtual void print() const override {
+      errs() << "Cont[";
+      if (_lhs != "") { errs() << _lhs; }
+      else if (lhs->hasName()) { errs() << lhs->getName(); }
+      else { lhs->print(errs(), false); }
+      errs() << ",";
+      inst->print(errs(), false);
+      errs() << ",";
+      frameAddr->print();
+      errs() << ",";
+      stackAddr->print();
+      errs() << "]";
+    }
+    
     strvar getStrLhs() { return _lhs; }
     var getLhs() { return lhs; }
     Instruction* getInst() { return inst; }
@@ -365,10 +415,15 @@ namespace AAM {
     
     virtual size_t hashValue() override {
       size_t seed = 0;
-      // TODO: is that necessary?
       seed = hash_combine(seed, hash_value("LocationValue"));
       seed = hash_combine(seed, loc->hashValue());
       return seed;
+    }
+    
+    virtual void print() const override {
+      errs() << "LocationValue[";
+      loc->print();
+      errs() << "]";
     }
 
   protected:
@@ -409,6 +464,12 @@ namespace AAM {
       seed = hash_combine(seed, hash_value(fun));
       return seed;
     }
+    
+    virtual void print() const override {
+      errs() << "FunctionValue[";
+      errs() << fun->getName();
+      errs() << "]";
+    }
 
   protected:
     virtual bool equalTo(const AbstractValue& that) const override {
@@ -439,6 +500,10 @@ namespace AAM {
       size_t seed = 0;
       seed = hash_combine(seed, hash_value("PrimValue"));
       return seed;
+    }
+    
+    virtual void print() const override {
+      errs() << "PrimValue";
     }
   
   protected:
@@ -474,6 +539,10 @@ namespace AAM {
       return hash_value(val);
     }
     
+    virtual void print() const override {
+      errs() << "IntValue[" << val.getSExtValue() << "]";
+    }
+    
   protected:
     virtual bool equalTo(const AbstractValue& that) const override {
       if (!isa<IntValue>(&that))
@@ -501,6 +570,10 @@ namespace AAM {
       size_t seed = 0;
       seed = hash_combine(seed, hash_value("BotValue"));
       return seed;
+    }
+    
+    virtual void print() const override {
+      errs() << "BotValue";
     }
 
   protected:
@@ -590,6 +663,10 @@ namespace AAM {
              std::equal(this->m.begin(), this->m.end(), that.m.begin(), pred);
     }
     
+    inline bool operator!=(Store<K,V,Less>& that) {
+      return !(*this == that);
+    }
+    
     virtual size_t hashValue() {
       size_t seed = 0;
       for (const auto& pair: m) {
@@ -634,6 +711,10 @@ namespace AAM {
               (!this->measure.hasValue() && !that.measure.hasValue()));
     }
     
+    inline bool operator!=(Conf<StoreType, SuccType, PredType, MeasureType>& that) {
+      return !(*this == that);
+    }
+    
     virtual size_t hashValue() {
       size_t seed = 0;
       seed = hash_combine(seed, store->hashValue());
@@ -663,6 +744,10 @@ namespace AAM {
     
     inline bool operator==(Stmt& that) {
       return this->inst == that.inst;
+    }
+    
+    inline bool operator!=(Stmt& that) {
+      return !(*this == that);
     }
     
     static std::shared_ptr<Stmt> makeStmt(Instruction* inst) {
@@ -701,6 +786,10 @@ namespace AAM {
              *this->ePtr == *that.ePtr &&
              *this->sPtr == *that.sPtr &&
              *this->kPtr == *that.kPtr;
+    }
+    
+    inline bool operator!=(State<C,E,S,K>& that) {
+      return !(*this == that);
     }
   
     virtual size_t hashValue() const {

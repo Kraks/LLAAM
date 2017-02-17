@@ -38,6 +38,10 @@ namespace ConcreteAAM {
       seed = hash_combine(seed, hash_value("ConcreteHeapAddr"));
       return seed;
     }
+    
+    virtual void print() const override {
+      errs() << "ConcHeapAddr[" << myId << "]";
+    }
   
   private:
     unsigned long long myId;
@@ -90,6 +94,10 @@ namespace ConcreteAAM {
       seed =hash_combine(seed, hash_value("ConcreteStackAddr"));
       return seed;
     }
+    
+    virtual void print() const override {
+      errs() << "ConcStackAddr[" << myId << "]";
+    }
   
   private:
     unsigned long long myId;
@@ -108,6 +116,7 @@ namespace ConcreteAAM {
   public:
     size_t hashValue() { return 0; }
     inline bool operator==(DummyMeasure& that) { return true; }
+    inline bool operator!=(DummyMeasure& that) { return true; }
   };
   
   class ConcreteConf : public Conf<ConcreteStore, ConcreteSucc, ConcretePred, DummyMeasure> {
@@ -176,6 +185,7 @@ namespace ConcreteAAM {
       // TODO: implement the real next()
       Instruction* inst = getControl()->getInst();
       Instruction* nextInst = getSyntacticNextInst(inst);
+      
       auto nextStmt = Stmt::makeStmt(nextInst);
       errs() << "Current state[" << myId << "] ";
       inst->dump();
@@ -210,6 +220,8 @@ namespace ConcreteAAM {
       }
       else if (isa<LoadInst>(inst)) {
         LoadInst* loadInst = dyn_cast<LoadInst>(inst);
+        auto addr = addrsOf(loadInst, this->getEnv(), this->getStore(), *ConcreteState::getModule());
+        errs() << "load num oprands: " << loadInst->getNumOperands() << "\n";
       }
       else if (isa<StoreInst>(inst)) {
         StoreInst* storeInst = dyn_cast<StoreInst>(inst);
@@ -314,6 +326,7 @@ namespace ConcreteAAM {
       }
       
       ///////////////////////////
+      assert(nextInst != nullptr && "next instruction is nullptr");
       auto stmt = Stmt::makeStmt(nextInst);
       auto state = makeState(stmt, getEnv(), getStore(), getCont());
       return state;
