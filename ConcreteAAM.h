@@ -48,11 +48,17 @@ namespace ConcreteAAM {
   public:
     typedef std::shared_ptr<ConcreteStackAddr> ConcreteStackAddrPtrType;
     ConcreteStackAddr() : StackAddr(KConcreteStackAddr) {
+      //errs() << "ConcreteStackAddr constructor\n";
       myId = id++;
     }
     
     static bool classof(const Location* loc) {
       return loc->getKind() == KConcreteStackAddr;
+    }
+    
+    static ConcreteStackAddrPtrType initFp() {
+      static ConcreteStackAddrPtrType initFp = makeConcreteStackAdd();
+      return initFp;
     }
     
     static ConcreteStackAddrPtrType makeConcreteStackAdd() {
@@ -74,6 +80,7 @@ namespace ConcreteAAM {
       if (!isa<ConcreteStackAddr>(&that))
         return false;
       auto* newThat = dyn_cast<ConcreteStackAddr>(&that);
+      //errs() << "StackPtr equalTo: " << newThat->myId << " " << this->myId << "\n";
       return newThat->myId == this->myId;
     }
     
@@ -116,7 +123,6 @@ namespace ConcreteAAM {
     }
   };
   
-  const static std::shared_ptr<FrameAddr> initFp = std::make_shared<ConcreteFrameAddr>();
   
   std::shared_ptr<ConcreteStore> getInitStore(Module& M);
   std::shared_ptr<ConcreteConf>  getInitConf(Module& M);
@@ -142,6 +148,8 @@ namespace ConcreteAAM {
   class ConcreteState : public State<Stmt, FrameAddr, ConcreteConf, StackAddr> {
   private:
     static Module* module;
+    static unsigned long long id;
+    unsigned long long myId;
     
   public:
     static void setModule(Module* M) {
@@ -151,18 +159,39 @@ namespace ConcreteAAM {
       assert(module != nullptr);
       return module;
     }
-  
+    
     typedef std::shared_ptr<ConcreteState> StatePtrType;
     
     ConcreteState(CPtrType c, EPtrType e, SPtrType s, KPtrType k) :
-      State(c, e, s, k) { };
+      State(c, e, s, k) {
+      myId = id++;
+    };
+    
+    StatePtrType copy() {
+      auto s = ConcreteState::makeState(this->getControl(), this->getEnv(), this->getStore(), this->getCont());
+      return s;
+    }
     
     StatePtrType next() {
       // TODO: implement the real next()
       Instruction* inst = getControl()->getInst();
       Instruction* nextInst = getSyntacticNextInst(inst);
+      errs() << "Current state[" << myId << "] ";
+      inst->dump();
       
-      if (isa<CallInst>(inst)) {
+      if (isa<ReturnInst>(inst)) {
+        ReturnInst* returnInst = dyn_cast<ReturnInst>(inst);
+        
+        auto fp = this->getEnv();
+        if (*fp == *ConcreteStackAddr::initFp()) {
+          return this->copy();
+        }
+        else {
+          //TODO
+        }
+      }
+      else if (isa<CallInst>(inst)) {
+        //TODO: invoke inst
         CallInst* callInst = dyn_cast<CallInst>(inst);
         Function* function = callInst->getFunction();
         std::string fname = function->getName();
@@ -178,32 +207,34 @@ namespace ConcreteAAM {
           
         }
       }
-      else if (isa<ReturnInst>(inst)) {
-        ReturnInst* returnInst = dyn_cast<ReturnInst>(inst);
-      }
       else if (isa<LoadInst>(inst)) {
         LoadInst* loadInst = dyn_cast<LoadInst>(inst);
       }
       else if (isa<StoreInst>(inst)) {
         StoreInst* storeInst = dyn_cast<StoreInst>(inst);
+        Value* op0 = storeInst->getOperand(0);
+        Value* op1 = storeInst->getOperand(1);
         
-        storeInst->dump();
         errs() << "store num oprands: " << storeInst->getNumOperands() << "\n";
         errs() << "op(0): ";
         storeInst->getOperand(0)->print(errs());
         errs() << ". type: " << storeInst->getOperand(0)->getType()->getTypeID();
+        errs() << "\nop0 constantint?: " << (isa<ConstantInt>(op0)) << "\n";
         errs() << "\nop(1): ";
         storeInst->getOperand(1)->print(errs());
+        errs() << ". type: " << storeInst->getOperand(1)->getType()->getTypeID();
         errs() << "\n";
         
-        Value* op0 = storeInst->getOperand(0);
-        Value* op1 = storeInst->getOperand(1);
-        
-        
+        if (ConstantInt* op0_ci = dyn_cast<ConstantInt>(op0)) {
+          auto val = evalAtom(op0_ci, getEnv(), getStore(), *ConcreteState::getModule());
+          
+        }
+        else {
+          
+        }
       }
       else if (isa<AllocaInst>(inst)) {
         AllocaInst* allocaInst = dyn_cast<AllocaInst>(inst);
-        allocaInst->dump();
         Type* allocaType = allocaInst->getAllocatedType();
         // The typeByteSize is the number of bytes, for example, int_32 is 4 bytes.
         // For now, assuming that the only type is int_32, and we can set the minimum allocation size in store to 4 byte
@@ -288,7 +319,7 @@ namespace ConcreteAAM {
       Function* main = M.getFunction(mainFuncName);
       Instruction* entry = getEntry(*main);
       std::shared_ptr<Stmt> initStmt = std::make_shared<Stmt>(entry);
-      std::shared_ptr<ConcreteState> initState = makeState(initStmt, ConcreteAAM::initFp, initConf, ConcreteAAM::initFp);
+      std::shared_ptr<ConcreteState> initState = makeState(initStmt, ConcreteStackAddr::initFp(), initConf, ConcreteStackAddr::initFp());
       return initState;
     }
     
@@ -298,6 +329,7 @@ namespace ConcreteAAM {
     }
   };
   
+  void run(ConcreteState::StatePtrType s);
 }
 
 #endif //LLVM_CONCRETEAAM_H

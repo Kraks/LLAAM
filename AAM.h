@@ -539,12 +539,21 @@ namespace AAM {
     }
     
     // Immutable update
+    /*
     Store<K,V,Less> update(Store<K,V,Less>::Key key, Store<K,V,Less>::Val val) {
       auto newMap = m;
       newMap[key] = val;
       Store<K,V,Less> newStore(newMap);
       return newStore;
     }
+    */
+    
+    std::shared_ptr<Store<K,V,Less>> update(Store<K,V,Less>::Key key, Store<K,V,Less>::Val val) {
+      auto newMap = m;
+      newMap[key] = val;
+      std::shared_ptr<Store<K,V,Less>> newStore = std::make_shared<Store<K,V,Less>>(newMap);
+      return newStore;
+    };
     
     Store<K, V, Less>& inplaceUpdate(Store<K,V,Less>::Key key, Store<K,V,Less>::Val val) {
       m[key] = val;
@@ -552,10 +561,19 @@ namespace AAM {
     }
     
     // Immutable remove
+    /*
     Store<K,V,Less> remove(Store<K,V,Less>::Key key) {
       auto newMap = m;
       newMap.erase(key);
       Store<K,V,Less> newStore(newMap);
+      return newStore;
+    };
+    */
+    
+    std::shared_ptr<Store<K,V,Less>> remove(Store<K,V,Less>::Key key) {
+      auto newMap = m;
+      newMap.erase(key);
+      std::shared_ptr<Store<K,V,Less>> newStore = std::make_shared<Store<K,V,Less>>(newMap);
       return newStore;
     };
     
@@ -679,7 +697,6 @@ namespace AAM {
     //virtual StatePtrType next() = 0;
     
     inline bool operator==(State<C,E,S,K>& that) {
-      //errs() << "State::operator==\n";
       return *this->cPtr == *that.cPtr &&
              *this->ePtr == *that.ePtr &&
              *this->sPtr == *that.sPtr &&

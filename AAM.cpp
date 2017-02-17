@@ -131,7 +131,7 @@ namespace {
       //errs() << "PrimVal eq: " << (*pv1 == *pv2) << "\n";
       
       for (int i = 0; i <= 2000; i++) {
-        ConcreteStore store4 = store.update(sp1, pv);
+        auto store4 = *store.update(sp1, pv);
         someV = store4.lookup(sp1).getValue();
         assert(store4.size() == 5);
         assert(store.size() == 5);
@@ -142,11 +142,11 @@ namespace {
         assert(isa<FuncValue>(*someV));
       }
       
-      ConcreteStore store5 = store.remove(baddr1);
+      auto store5 = *store.remove(baddr1);
       assert(store5.size() == 4);
-      ConcreteStore store6 = store.remove(baddr2);
+      auto store6 = *store.remove(baddr2);
       assert(store6.size() == 4);
-      ConcreteStore store7 = store5.update(baddr1, pv);
+      auto store7 = *store5.update(baddr1, pv);
       shared_ptr<AbstractValue> another_pv = store7.lookup(baddr2).getValue();
       assert(isa<PrimValue>(*another_pv));
       
@@ -226,13 +226,14 @@ namespace {
       todo.inplaceInsert(state);
       assert(todo.contains(state));
       assert(*state == *state);
+      assert(*state == *state->copy());
+      assert(state->hashValue() == state->copy()->hashValue());
   
       auto state1 = state->next();
       assert(!(*state1 == *state));
       
-      auto state1_copy = state->next();
-      assert(*state1 == *state1_copy);
-      //assert(state1->hashValue() == state1_copy->hashValue());
+      auto state1_copy = state1->copy();
+      assert(state1->hashValue() == state1_copy->hashValue());
       
       // state1 and state1_copy are the same, so the set should only have one of them
       todo.inplaceInsert(state1);
@@ -257,11 +258,7 @@ namespace {
     
     static void test3(Module& M) {
       std::shared_ptr<ConcreteState> state = ConcreteState::inject(M, "main");
-      auto nextState = state->next();
-      nextState = nextState->next();
-      nextState = nextState->next();
-      nextState = nextState->next();
-      nextState = nextState->next();
+      ConcreteAAM::run(state);
     }
 
     bool runOnModule(Module& M) override {
