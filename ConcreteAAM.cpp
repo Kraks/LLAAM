@@ -18,8 +18,8 @@ namespace ConcreteAAM {
     while (!(*state == *nextState)) {
       state = nextState;
       nextState = state->next();
+      nextState->getConf()->getStore()->print();
     }
-    state->getConf()->getStore()->print();
   }
   
   /********  Auxiliary functions  ********/
@@ -89,46 +89,13 @@ namespace ConcreteAAM {
         return mt;
       }
     }
+    else if (lhsType->isAggregateType()) {
+      assert(false && "TODO: lhs is an aggregate type");
+    }
     else {
       assert(false && "TODO");
     }
     
-    /*
-    if (lhsType->isPointerTy()) {
-      // If the lvalue is a pointer(location), then query the store
-      // to retrieve the location it points to.
-      std::shared_ptr<ConcreteStore> store = conf->getStore();
-      std::shared_ptr<Location> bind = std::make_shared<BindAddr>(lhs, fp);
-      auto result = store->lookup(bind);
-  
-      if (result.hasValue()) {
-        auto val = result.getValue();
-        assert(isa<LocationValue>(*val) && "The result from store should be a Location");
-        auto newVal = std::static_pointer_cast<LocationValue>(val);
-        return newVal->getLocation();
-      }
-      else {
-        assert(false && "Unbound variable");
-        std::shared_ptr<Location> mt;
-        return mt;
-      }
-    }
-    else if (lhsType->isAggregateType()){
-      assert(false && "TODO: lhs is an aggregate type");
-    }
-    else {
-      // addrOf gets the location of a lhs variable name
-      // If the variable is global, then use the initial frame pointer to
-      // form the BindAddr, otherwise use current frame pointer.
-      std::string var = lhs->getName();
-      if (M.getGlobalVariable(var)) {
-        return std::make_shared<BindAddr>(lhs, ConcreteAAM::initFp);
-      }
-      else {
-        return std::make_shared<BindAddr>(lhs, fp);
-      }
-    }
-     */
   }
   
   std::shared_ptr<ConcreteStore> getInitStore(Module& M) {

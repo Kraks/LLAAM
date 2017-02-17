@@ -224,7 +224,8 @@ namespace ConcreteAAM {
       else if (isa<LoadInst>(inst)) {
         LoadInst* loadInst = dyn_cast<LoadInst>(inst);
         Value* op0 = loadInst->getOperand(0);
-        auto destAddr = addrsOf(loadInst, this->getEnv(), this->getConf(), *ConcreteState::getModule());
+        //TODO: refactor how to build BindAddr
+        auto destAddr = std::make_shared<BindAddr>(loadInst, this->getEnv());
         
         /*
         errs() << "load num oprands: " << loadInst->getNumOperands() << "\n";
@@ -233,10 +234,16 @@ namespace ConcreteAAM {
         errs() << "\n";
         */
         
-        auto addr = addrsOf(op0, this->getEnv(), this->getConf(), *ConcreteState::getModule());
-        auto valOpt = this->getConf()->getStore()->lookup(addr);
+        auto targetAddr = addrsOf(op0, this->getEnv(), this->getConf(), *ConcreteState::getModule());
+        auto valOpt = this->getConf()->getStore()->lookup(targetAddr);
         assert(valOpt.hasValue());
         auto val = valOpt.getValue();
+        
+        if (loadInst->getType()->isIntegerTy()) {
+          assert(isa<IntValue>(*val));
+        } else if (loadInst->getType()->isPointerTy()) {
+          assert(isa<LocationValue>(*val));
+        }
         
         auto newStore = this->getConf()->getStore()->copy();
         newStore->inplaceUpdate(destAddr, val);
@@ -332,6 +339,7 @@ namespace ConcreteAAM {
           newStore->inplaceUpdate(addr, bot);
         }
         assert(newStore->size() == (store->size() + addrs->size()));
+        //TODO: refactor how to build this BindAddr
         auto destAddr = std::make_shared<BindAddr>(inst, this->getEnv());
         newStore->inplaceUpdate(destAddr, locVal);
         
