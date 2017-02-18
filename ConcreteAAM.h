@@ -217,8 +217,29 @@ namespace ConcreteAAM {
         if (*fp == *ConcreteStackAddr::initFp()) {
           return this->copy();
         }
+        else if (returnInst->getNumOperands() > 0) {
+          //TODO: GC
+          auto ret = returnInst->getOperand(0);
+          auto rval = evalAtom(ret, this->getEnv(), this->getConf(), *ConcreteState::getModule());
+          
+          auto valOpt = this->getConf()->getStore()->lookup(this->getEnv());
+          assert(valOpt.hasValue());
+          auto val = valOpt.getValue();
+          assert(isa<Cont>(&*val));
+          auto cont = dyn_cast<Cont>(&*val);
+          
+          auto lhs = cont->getLhs();
+          auto destAddr = BindAddr::makeBindAddr(lhs, cont->getFrameAddr());
+          auto newStore = this->getConf()->getStore()->copy();
+          newStore->inplaceUpdate(destAddr, rval);
+          auto newConf = ConcreteConf::makeConf(newStore, getConf()->getSucc(), getConf()->getPred());
+          
+          auto calleeStmt = Stmt::makeStmt(cont->getInst());
+          auto newState = ConcreteState::makeState(calleeStmt, cont->getFrameAddr(), newConf, cont->getStackAddr());
+          return newState;
+        }
         else {
-          //TODO
+          
         }
       }
       else if (isa<InvokeInst>(inst)) {
@@ -257,7 +278,7 @@ namespace ConcreteAAM {
           auto newStore = this->getConf()->getStore()->copy();
           auto cont = Cont::makeCont(inst, nextInst, this->getEnv(), this->getCont());
           newStore->inplaceUpdate(newFP, cont);
-            
+          
           auto ds_it = ds.begin();
           auto fa_it = formalArgs.begin();
           for (; ds_it != ds.end() &&
