@@ -632,6 +632,7 @@ namespace AAM {
       return None;
     }
     
+    // Immutable update
     std::shared_ptr<Store<K,V,Less>> update(Store<K,V,Less>::Key key, Store<K,V,Less>::Val val) {
       auto newMap = m;
       newMap[key] = val;
@@ -644,6 +645,7 @@ namespace AAM {
       return *this;
     }
     
+    // Immutable remove
     std::shared_ptr<Store<K,V,Less>> remove(Store<K,V,Less>::Key key) {
       auto newMap = m;
       newMap.erase(key);

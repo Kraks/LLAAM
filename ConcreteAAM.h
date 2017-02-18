@@ -143,12 +143,27 @@ namespace ConcreteAAM {
     ConcreteConf(StorePtrType store, SuccPtrType succ, PredPtrType pred) :
       Conf(store, succ, pred) {}
     
+    ConfPtrType copy() {
+      auto conf = makeConf(this->getStore()->copy(), this->getSucc()->copy(), this->getPred()->copy());
+      return conf;
+    }
+    
+    // Immutable remove
+    ConfPtrType remove(ConcreteStore::Key key) {
+      auto newConf = makeConf(this->getStore()->remove(key),
+                              this->getSucc()->remove(key),
+                              this->getPred()->remove(key));
+      assert(newConf->getStore()->size() == (this->getStore()->size()-1));
+      assert(newConf->getSucc()->size() == (this->getSucc()->size()-1));
+      assert(newConf->getPred()->size() == (this->getPred()->size()-1));
+      return newConf;
+    }
+    
     static ConfPtrType makeConf(StorePtrType store, SuccPtrType succ, PredPtrType pred) {
       ConfPtrType conf = std::make_shared<ConcreteConf>(store, succ, pred);
       return conf;
     }
   };
-  
   
   std::shared_ptr<ConcreteStore> getInitStore(Module& M);
   std::shared_ptr<ConcreteConf>  getInitConf(Module& M);
@@ -271,6 +286,7 @@ namespace ConcreteAAM {
           
         }
         else {
+          //TODO pass a pointer to function.
           auto entry = getEntry(*function);
           auto entryStmt = Stmt::makeStmt(entry);
           std::vector<std::shared_ptr<AbstractValue>> ds;
@@ -445,7 +461,8 @@ namespace ConcreteAAM {
       else if (isa<GetElementPtrInst>(inst)) {
         
       }
-      else if (Instruction::Add == inst->getOpcode()) {
+      else if (Instruction::Add == inst->getOpcode() ||
+               Instruction::Sub == inst->getOpcode()) {
         Value* lhs = inst->getOperand(0);
         Value* rhs = inst->getOperand(1);
         APInt lhs_v;
@@ -480,7 +497,13 @@ namespace ConcreteAAM {
           rhs_v = intVal->getValue();
         }
         
-        auto result = lhs_v + rhs_v;
+        APInt result;
+        if (Instruction::Add == inst->getOpcode()) {
+          result = lhs_v + rhs_v;
+        }
+        if (Instruction::Sub == inst->getOpcode()) {
+          result = lhs_v - rhs_v;
+        }
         auto resultVal = IntValue::makeInt(result);
         auto destAddr = addrsOf(inst, this->getFp(), this->getConf(), *ConcreteState::getModule());
         auto newStore = this->getConf()->getStore()->copy();
