@@ -27,24 +27,20 @@ namespace ConcreteAAM {
   // TODO: addrOf
   // TODO: Prim operator
   
-  // If val is a constant integer, return IntVal(val)
-  std::shared_ptr<AbstractValue> evalAtom(ConstantInt* i,
-                                          std::shared_ptr<FrameAddr> fp,
-                                          std::shared_ptr<ConcreteConf> conf,
-                                          Module& M) {
-    errs() << "evalAtom constant int\n";
-    return IntValue::makeInt(i->getValue());
-  }
-  
   std::shared_ptr<AbstractValue> evalAtom(Value* val,
                                           std::shared_ptr<FrameAddr> fp,
                                           std::shared_ptr<ConcreteConf> conf,
                                           Module& M) {
-    errs() << "evalAtom value*\n";
+    if (ConstantInt* ci = dyn_cast<ConstantInt>(val)) {
+      return IntValue::makeInt(ci->getValue());
+    }
     // If val is a left-hand side value, return the value of its address
-    auto loc = addrsOf(val, fp, conf, M);
-    auto locVal = LocationValue::makeLocationValue(loc);
-    return locVal;
+    auto addr = BindAddr::makeBindAddr(val, fp);
+    auto valOpt = conf->getStore()->lookup(addr);
+    assert(valOpt.hasValue());
+    auto value = valOpt.getValue();
+    return value;
+    
     // If val is a primitive operation, do the operation
     // If val is a sizeof operation
   }

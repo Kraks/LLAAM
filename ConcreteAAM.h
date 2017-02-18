@@ -228,7 +228,9 @@ namespace ConcreteAAM {
         CallInst* callInst = dyn_cast<CallInst>(inst);
         Function* function = callInst->getCalledFunction();
         std::string fname = function->getName();
-        auto& args = function->getArgumentList();
+        auto actualArgs = callInst->arg_operands();
+        auto& formalArgs = function->getArgumentList();
+        
         errs() << "function name: " << fname << "\n";
         errs() << "op num: " << callInst->getNumOperands() << "\n";
         
@@ -240,6 +242,34 @@ namespace ConcreteAAM {
         }
         else {
           auto entry = getEntry(*function);
+          auto entryStmt = Stmt::makeStmt(entry);
+          std::vector<std::shared_ptr<AbstractValue>> ds;
+          for (auto& arg : actualArgs) {
+            auto valArg = arg.get();
+            auto arg_v = evalAtom(valArg, getEnv(), getConf(), *ConcreteState::getModule());
+            ds.push_back(arg_v);
+          }
+          assert(ds.size() == formalArgs.size());
+  
+          auto newFP = ConcreteFrameAddr::makeConcreteStackAddr(); //TODO: rename it
+          auto newSP = newFP;
+          
+          auto newStore = this->getConf()->getStore()->copy();
+          auto cont = Cont::makeCont(inst, nextInst, this->getEnv(), this->getCont());
+          newStore->inplaceUpdate(newFP, cont);
+            
+          auto ds_it = ds.begin();
+          auto fa_it = formalArgs.begin();
+          for (; ds_it != ds.end() &&
+                 fa_it != formalArgs.end();
+                 ds_it++, fa_it++) {
+            auto addr = BindAddr::makeBindAddr(&*fa_it, newFP);
+            newStore->inplaceUpdate(addr, *ds_it);
+          }
+  
+          auto newConf = ConcreteConf::makeConf(newStore, this->getConf()->getSucc(), this->getConf()->getSucc());
+          auto newState = ConcreteState::makeState(entryStmt, newFP, newConf, newSP);
+          return newState;
         }
       }
       else if (isa<LoadInst>(inst)) {
@@ -298,17 +328,8 @@ namespace ConcreteAAM {
         auto newStore = this->getConf()->getStore()->copy();
         
         if (op0_ty->isIntegerTy()) {
-          if (ConstantInt* op0_ci = dyn_cast<ConstantInt>(op0)) {
-            auto val = evalAtom(op0_ci, getEnv(), getConf(), *ConcreteState::getModule());
-            newStore->inplaceUpdate(destAddr, val);
-          }
-          else {
-            auto fromAddr = addrsOf(op0, getEnv(), getConf(), *ConcreteState::getModule());
-            auto fromValOpt = this->getConf()->getStore()->lookup(fromAddr);
-            assert(fromValOpt.hasValue());
-            auto val = fromValOpt.getValue();
-            newStore->inplaceUpdate(destAddr, val);
-          }
+          auto val = evalAtom(op0, getEnv(), getConf(), *ConcreteState::getModule());
+          newStore->inplaceUpdate(destAddr, val);
         }
         else if (op0_ty->isPointerTy()) {
           auto fromAddr = addrsOf(op0, getEnv(), getConf(), *ConcreteState::getModule());

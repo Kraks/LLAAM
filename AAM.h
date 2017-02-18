@@ -343,6 +343,7 @@ namespace AAM {
     std::shared_ptr<StackAddr> stackAddr;
     
   public:
+    typedef std::shared_ptr<Cont> ContPtrType;
     Cont(strvar _lhs, Instruction* inst, std::shared_ptr<FrameAddr> frameAddr, std::shared_ptr<StackAddr> stackAddr)
       : AbstractValue(KContV), _lhs(_lhs), lhs(nullptr), inst(inst), frameAddr(frameAddr), stackAddr(stackAddr) {}
     
@@ -351,6 +352,13 @@ namespace AAM {
     
     static bool classof(const AbstractValue* v) {
       return v->getKind() == KContV;
+    }
+    
+    static ContPtrType makeCont(var lhs, Instruction* inst,
+                                std::shared_ptr<FrameAddr> frameAddr,
+                                std::shared_ptr<StackAddr> stackAddr) {
+      auto cont = std::make_shared<Cont>(lhs, inst, frameAddr, stackAddr);
+      return cont;
     }
     
     virtual size_t hashValue() override {
@@ -399,7 +407,7 @@ namespace AAM {
              *this->stackAddr == *newThat->stackAddr;
     }
   };
-
+  
   class LocationValue : public AbstractValue {
     std::shared_ptr<Location> loc;
   public:
