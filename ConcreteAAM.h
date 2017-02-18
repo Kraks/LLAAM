@@ -200,8 +200,8 @@ namespace ConcreteAAM {
     
     StatePtrType next() {
       // Core instruction:
-      //    StoreInst, LoadInst, AllocaInst
-      //    CallInst malloc, CallInst free
+      //    StoreInst, LoadInst, AllocaInst, ReturnInst
+      //    CallInst @malloc, CallInst @free
       // TODO: implement the real next()
       Instruction* inst = getControl()->getInst();
       Instruction* nextInst = getSyntacticNextInst(inst);
@@ -212,6 +212,7 @@ namespace ConcreteAAM {
       
       if (isa<ReturnInst>(inst)) {
         ReturnInst* returnInst = dyn_cast<ReturnInst>(inst);
+        errs() << "op nums: " << returnInst->getNumOperands() << "\n";
         
         auto fp = this->getFp();
         if (*fp == *ConcreteStackAddr::initFp()) {
@@ -222,11 +223,11 @@ namespace ConcreteAAM {
           auto ret = returnInst->getOperand(0);
           auto rval = evalAtom(ret, this->getFp(), this->getConf(), *ConcreteState::getModule());
           
-          auto valOpt = this->getConf()->getStore()->lookup(this->getFp());
-          assert(valOpt.hasValue());
-          auto val = valOpt.getValue();
-          assert(isa<Cont>(&*val));
-          auto cont = dyn_cast<Cont>(&*val);
+          auto contValOpt = this->getConf()->getStore()->lookup(this->getFp());
+          assert(contValOpt.hasValue());
+          auto contVal = contValOpt.getValue();
+          assert(isa<Cont>(&*contVal));
+          auto cont = dyn_cast<Cont>(&*contVal);
           
           auto lhs = cont->getLhs();
           auto destAddr = BindAddr::makeBindAddr(lhs, cont->getFrameAddr());
@@ -239,7 +240,15 @@ namespace ConcreteAAM {
           return newState;
         }
         else {
-          
+          auto contValOpt = this->getConf()->getStore()->lookup(this->getFp());
+          assert(contValOpt.hasValue());
+          auto contVal = contValOpt.getValue();
+          assert(isa<Cont>(&*contVal));
+          auto cont = dyn_cast<Cont>(&*contVal);
+  
+          auto calleeStmt = Stmt::makeStmt(cont->getInst());
+          auto newState = ConcreteState::makeState(calleeStmt, cont->getFrameAddr(), getConf(), cont->getStackAddr());
+          return newState;
         }
       }
       else if (isa<InvokeInst>(inst)) {
@@ -276,6 +285,7 @@ namespace ConcreteAAM {
           auto newSP = newFP;
           
           auto newStore = this->getConf()->getStore()->copy();
+          //TODO: if just a call function, pass nullptr instead of inst
           auto cont = Cont::makeCont(inst, nextInst, this->getFp(), this->getSp());
           newStore->inplaceUpdate(newFP, cont);
           
