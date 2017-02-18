@@ -786,9 +786,9 @@ namespace AAM {
       : cPtr(c), ePtr(e), sPtr(s), kPtr(k) {}
     
     CPtrType getControl() { return cPtr; }
-    EPtrType getEnv() { return ePtr; }
+    EPtrType getFp() { return ePtr; }
     SPtrType getConf() { return sPtr; }
-    KPtrType getCont() { return kPtr; }
+    KPtrType getSp() { return kPtr; }
     
     // TODO: shared_ptr as covariant return type
     //virtual StatePtrType next() = 0;

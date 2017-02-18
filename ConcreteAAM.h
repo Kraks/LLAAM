@@ -194,7 +194,7 @@ namespace ConcreteAAM {
     };
     
     StatePtrType copy() {
-      auto s = ConcreteState::makeState(this->getControl(), this->getEnv(), this->getConf(), this->getCont());
+      auto s = ConcreteState::makeState(this->getControl(), this->getFp(), this->getConf(), this->getSp());
       return s;
     }
     
@@ -213,16 +213,16 @@ namespace ConcreteAAM {
       if (isa<ReturnInst>(inst)) {
         ReturnInst* returnInst = dyn_cast<ReturnInst>(inst);
         
-        auto fp = this->getEnv();
+        auto fp = this->getFp();
         if (*fp == *ConcreteStackAddr::initFp()) {
           return this->copy();
         }
         else if (returnInst->getNumOperands() > 0) {
           //TODO: GC
           auto ret = returnInst->getOperand(0);
-          auto rval = evalAtom(ret, this->getEnv(), this->getConf(), *ConcreteState::getModule());
+          auto rval = evalAtom(ret, this->getFp(), this->getConf(), *ConcreteState::getModule());
           
-          auto valOpt = this->getConf()->getStore()->lookup(this->getEnv());
+          auto valOpt = this->getConf()->getStore()->lookup(this->getFp());
           assert(valOpt.hasValue());
           auto val = valOpt.getValue();
           assert(isa<Cont>(&*val));
@@ -267,7 +267,7 @@ namespace ConcreteAAM {
           std::vector<std::shared_ptr<AbstractValue>> ds;
           for (auto& arg : actualArgs) {
             auto valArg = arg.get();
-            auto arg_v = evalAtom(valArg, getEnv(), getConf(), *ConcreteState::getModule());
+            auto arg_v = evalAtom(valArg, getFp(), getConf(), *ConcreteState::getModule());
             ds.push_back(arg_v);
           }
           assert(ds.size() == formalArgs.size());
@@ -276,7 +276,7 @@ namespace ConcreteAAM {
           auto newSP = newFP;
           
           auto newStore = this->getConf()->getStore()->copy();
-          auto cont = Cont::makeCont(inst, nextInst, this->getEnv(), this->getCont());
+          auto cont = Cont::makeCont(inst, nextInst, this->getFp(), this->getSp());
           newStore->inplaceUpdate(newFP, cont);
           
           auto ds_it = ds.begin();
@@ -296,7 +296,7 @@ namespace ConcreteAAM {
       else if (isa<LoadInst>(inst)) {
         LoadInst* loadInst = dyn_cast<LoadInst>(inst);
         Value* op0 = loadInst->getOperand(0);
-        auto destAddr = BindAddr::makeBindAddr(loadInst, this->getEnv());
+        auto destAddr = BindAddr::makeBindAddr(loadInst, this->getFp());
         
         /*
         errs() << "load num oprands: " << loadInst->getNumOperands() << "\n";
@@ -305,7 +305,7 @@ namespace ConcreteAAM {
         errs() << "\n";
         */
         
-        auto targetAddr = addrsOf(op0, this->getEnv(), this->getConf(), *ConcreteState::getModule());
+        auto targetAddr = addrsOf(op0, this->getFp(), this->getConf(), *ConcreteState::getModule());
         auto valOpt = this->getConf()->getStore()->lookup(targetAddr);
         assert(valOpt.hasValue());
         auto val = valOpt.getValue();
@@ -319,7 +319,7 @@ namespace ConcreteAAM {
         auto newStore = this->getConf()->getStore()->copy();
         newStore->inplaceUpdate(destAddr, val);
         auto newConf = ConcreteConf::makeConf(newStore, this->getConf()->getSucc(), this->getConf()->getPred());
-        auto newState = ConcreteState::makeState(nextStmt, this->getEnv(), newConf, this->getCont());
+        auto newState = ConcreteState::makeState(nextStmt, this->getFp(), newConf, this->getSp());
         return newState;
       }
       else if (isa<StoreInst>(inst)) {
@@ -341,7 +341,7 @@ namespace ConcreteAAM {
         errs() << "\n";
         */
         
-        auto destAddr = addrsOf(op1, this->getEnv(), this->getConf(), *ConcreteState::getModule());
+        auto destAddr = addrsOf(op1, this->getFp(), this->getConf(), *ConcreteState::getModule());
         errs() << "dest: ";
         destAddr->print();
         errs() << "\n";
@@ -349,17 +349,17 @@ namespace ConcreteAAM {
         auto newStore = this->getConf()->getStore()->copy();
         
         if (op0_ty->isIntegerTy()) {
-          auto val = evalAtom(op0, getEnv(), getConf(), *ConcreteState::getModule());
+          auto val = evalAtom(op0, getFp(), getConf(), *ConcreteState::getModule());
           newStore->inplaceUpdate(destAddr, val);
         }
         else if (op0_ty->isPointerTy()) {
-          auto fromAddr = addrsOf(op0, getEnv(), getConf(), *ConcreteState::getModule());
+          auto fromAddr = addrsOf(op0, getFp(), getConf(), *ConcreteState::getModule());
           auto val = LocationValue::makeLocationValue(fromAddr);
           newStore->inplaceUpdate(destAddr, val);
         }
         
         auto newConf = ConcreteConf::makeConf(newStore, this->getConf()->getSucc(), this->getConf()->getPred());
-        auto newState = ConcreteState::makeState(nextStmt, this->getEnv(), newConf, this->getCont());
+        auto newState = ConcreteState::makeState(nextStmt, this->getFp(), newConf, this->getSp());
         return newState;
       }
       else if (isa<AllocaInst>(inst)) {
@@ -392,7 +392,7 @@ namespace ConcreteAAM {
         auto pred = this->getConf()->getPred();
         
         // aTop is the stack pointer in current state.
-        auto aTop = this->getCont();
+        auto aTop = this->getSp();
         auto bot = BotValue::getInstance();
         auto addrs = ConcreteStackAddr::allocate(nAlloc);
         
@@ -402,7 +402,7 @@ namespace ConcreteAAM {
           newStore->inplaceUpdate(addr, bot);
         }
         assert(newStore->size() == (store->size() + addrs->size()));
-        auto destAddr = BindAddr::makeBindAddr(inst, this->getEnv());
+        auto destAddr = BindAddr::makeBindAddr(inst, this->getFp());
         newStore->inplaceUpdate(destAddr, locVal);
         
         auto newSucc = succ->copy();
@@ -426,7 +426,7 @@ namespace ConcreteAAM {
         
         auto newConf = ConcreteConf::makeConf(newStore, newSucc, newPred);
         auto newStackPtr = addrs->front();
-        auto newState = ConcreteState::makeState(nextStmt, this->getEnv(), newConf, newStackPtr);
+        auto newState = ConcreteState::makeState(nextStmt, this->getFp(), newConf, newStackPtr);
         return newState;
       }
       else if (isa<BranchInst>(inst)) {
@@ -448,7 +448,7 @@ namespace ConcreteAAM {
           lhs_v = lhs_ci->getValue();
         }
         else {
-          auto addr = addrsOf(lhs, this->getEnv(), this->getConf(), *ConcreteState::getModule());
+          auto addr = addrsOf(lhs, this->getFp(), this->getConf(), *ConcreteState::getModule());
           auto valOpt = this->getConf()->getStore()->lookup(addr);
           assert(valOpt.hasValue());
           auto val = valOpt.getValue();
@@ -461,7 +461,7 @@ namespace ConcreteAAM {
           rhs_v = rhs_ci->getValue();
         }
         else {
-          auto addr = addrsOf(rhs, this->getEnv(), this->getConf(), *ConcreteState::getModule());
+          auto addr = addrsOf(rhs, this->getFp(), this->getConf(), *ConcreteState::getModule());
           auto valOpt = this->getConf()->getStore()->lookup(addr);
           assert(valOpt.hasValue());
           auto val = valOpt.getValue();
@@ -472,11 +472,11 @@ namespace ConcreteAAM {
         
         auto result = lhs_v + rhs_v;
         auto resultVal = IntValue::makeInt(result);
-        auto destAddr = addrsOf(inst, this->getEnv(), this->getConf(), *ConcreteState::getModule());
+        auto destAddr = addrsOf(inst, this->getFp(), this->getConf(), *ConcreteState::getModule());
         auto newStore = this->getConf()->getStore()->copy();
         newStore->inplaceUpdate(destAddr, resultVal);
         auto newConf = ConcreteConf::makeConf(newStore, this->getConf()->getSucc(), this->getConf()->getPred());
-        auto newState = ConcreteState::makeState(nextStmt, this->getEnv(), newConf, this->getCont());
+        auto newState = ConcreteState::makeState(nextStmt, this->getFp(), newConf, this->getSp());
         return newState;
       }
       else {
@@ -486,7 +486,7 @@ namespace ConcreteAAM {
       ///////////////////////////
       assert(nextInst != nullptr && "next instruction is nullptr");
       auto stmt = Stmt::makeStmt(nextInst);
-      auto state = makeState(stmt, getEnv(), getConf(), getCont());
+      auto state = makeState(stmt, getFp(), getConf(), getSp());
       return state;
     }
     
