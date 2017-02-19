@@ -12,4 +12,5 @@ int main() {
   int a = add(x, y);
   int b = sub(y, x);
   int c = a + b;
+  return c;
 }

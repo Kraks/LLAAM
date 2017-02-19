@@ -4,4 +4,5 @@ int id(int x) {
 
 int main() {
   int y = id(3);
+  return y;
 }

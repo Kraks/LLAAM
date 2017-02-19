@@ -8,4 +8,5 @@ int main() {
   int (*another_add_ptr)(int, int);
   another_add_ptr = add_ptr;
   int a = another_add_ptr(3, 4);
+  return a;
 }

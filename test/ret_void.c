@@ -6,4 +6,5 @@ void f(int x, int y) {
 int main() {
  f(3, 4); 
  int z = 3;
+ return z;
 }

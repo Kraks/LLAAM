@@ -3,4 +3,5 @@ int main() {
   int* y = &x;
   int** z = &y;
   int a = **z;
+  return a;
 }

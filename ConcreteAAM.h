@@ -256,10 +256,22 @@ namespace ConcreteAAM {
       
       if (isa<ReturnInst>(inst)) {
         ReturnInst* returnInst = dyn_cast<ReturnInst>(inst);
-        errs() << "op nums: " << returnInst->getNumOperands() << "\n";
-        
+        size_t opNum = returnInst->getNumOperands();
         auto fp = this->getFp();
+        
+        //errs() << "op nums: " << opNum << "\n";
         if (*fp == *ConcreteStackAddr::initFp()) {
+          if (opNum > 0) {
+            auto ret = returnInst->getOperand(0);
+            auto rval = evalAtom(ret, this->getFp(), this->getConf(), *ConcreteState::getModule());
+            errs() << "Return: ";
+            rval->print();
+            errs() << "\n";
+          }
+          else {
+            errs() << "Return: Void\n";
+          }
+          
           return this->copy();
         }
   
@@ -270,7 +282,7 @@ namespace ConcreteAAM {
         auto cont = dyn_cast<Cont>(&*contVal);
         auto newStore = this->getConf()->getStore()->copy();
         
-        if (returnInst->getNumOperands() > 0) {
+        if (opNum > 0) {
           auto ret = returnInst->getOperand(0);
           auto rval = evalAtom(ret, this->getFp(), this->getConf(), *ConcreteState::getModule());
           auto lhs = cont->getLhs();
@@ -433,11 +445,6 @@ namespace ConcreteAAM {
             assert(fromValOpt.hasValue());
             auto fromVal = fromValOpt.getValue();
             newStore->inplaceUpdate(destAddr, fromVal);
-            /*
-            auto fromAddr = addrsOf(op0, getFp(), getConf(), *ConcreteState::getModule());
-            auto val = LocationValue::makeLocationValue(fromAddr);
-            newStore->inplaceUpdate(destAddr, val);
-            */
           }
         }
         
