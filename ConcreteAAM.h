@@ -292,13 +292,30 @@ namespace ConcreteAAM {
       }
       else if (isa<CallInst>(inst)) {
         CallInst* callInst = dyn_cast<CallInst>(inst);
-        Function* function = callInst->getCalledFunction();
+        Value* f = callInst->getCalledFunction();
+        Function* function = nullptr;
+        
+        if (f) {
+          function = dyn_cast<Function>(f);
+        }
+        else {
+          size_t fpos = callInst->getNumOperands() - 1;
+          Value* op0 = callInst->getOperand(fpos);
+          auto faddr = BindAddr::makeBindAddr(op0, this->getFp());
+          auto valOpt = this->getConf()->getStore()->lookup(faddr);
+          assert(valOpt.hasValue());
+          auto val = valOpt.getValue();
+          assert(isa<FuncValue>(&*val));
+          auto fval = dyn_cast<FuncValue>(&*val);
+          function = fval->getFunction();
+        }
+        
         std::string fname = function->getName();
         auto actualArgs = callInst->arg_operands();
         auto& formalArgs = function->getArgumentList();
         
-        errs() << "function name: " << fname << "\n";
-        errs() << "op num: " << callInst->getNumOperands() << "\n";
+        //errs() << "function name: " << fname << "\n";
+        //errs() << "op num: " << callInst->getNumOperands() << "\n";
         
         if (fname == "malloc") {
           
@@ -307,7 +324,6 @@ namespace ConcreteAAM {
           
         }
         else {
-          // TODO: call a function pointer
           auto entry = getEntry(*function);
           auto entryStmt = Stmt::makeStmt(entry);
           std::vector<std::shared_ptr<AbstractValue>> ds;
@@ -359,8 +375,9 @@ namespace ConcreteAAM {
         
         if (loadInst->getType()->isIntegerTy()) {
           assert(isa<IntValue>(*val));
-        } else if (loadInst->getType()->isPointerTy()) {
-          assert(isa<LocationValue>(*val));
+        }
+        else if (loadInst->getType()->isPointerTy()) {
+          assert(isa<LocationValue>(*val) || isa<FuncValue>(*val));
         }
         
         auto newStore = this->getConf()->getStore()->copy();
@@ -400,9 +417,21 @@ namespace ConcreteAAM {
           newStore->inplaceUpdate(destAddr, val);
         }
         else if (op0_ty->isPointerTy()) {
-          auto fromAddr = addrsOf(op0, getFp(), getConf(), *ConcreteState::getModule());
-          auto val = LocationValue::makeLocationValue(fromAddr);
-          newStore->inplaceUpdate(destAddr, val);
+          errs() << "op0 func? " << (isa<Function>(op0)) << "\n";
+          if (isa<Function>(op0)) {
+            // Function pointer
+            //errs() << "op0_ty func: " << op0_ty->isFunctionTy() << "\n";
+            Function* f = getModule()->getFunction(op0->getName());
+            assert(f && "can not get function");
+            //Function* f = dyn_cast<Function>(op0);
+            auto val = FuncValue::makeFuncValue(f);
+            newStore->inplaceUpdate(destAddr, val);
+          }
+          else {
+            auto fromAddr = addrsOf(op0, getFp(), getConf(), *ConcreteState::getModule());
+            auto val = LocationValue::makeLocationValue(fromAddr);
+            newStore->inplaceUpdate(destAddr, val);
+          }
         }
         
         auto newConf = ConcreteConf::makeConf(newStore, this->getConf()->getSucc(), this->getConf()->getPred());

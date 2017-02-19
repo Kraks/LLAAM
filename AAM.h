@@ -452,6 +452,7 @@ namespace AAM {
   class FuncValue : public AbstractValue {
     Function* fun;
   public:
+    typedef std::shared_ptr<FuncValue> FuncValuePtrType;
     FuncValue(Function* fun) : AbstractValue(KFuncV), fun(fun) {}
     
     FuncValue(const FuncValue& funcValue) : AbstractValue(KFuncV), fun(funcValue.fun) {}
@@ -468,6 +469,11 @@ namespace AAM {
     Function* getFunction() const {
       return fun;
     }
+    
+    static FuncValuePtrType makeFuncValue(Function* f) {
+      auto fv = std::make_shared<FuncValue>(f);
+      return fv;
+    }
   
     static bool classof(const AbstractValue* v) {
       return v->getKind() == KFuncV;
@@ -480,7 +486,7 @@ namespace AAM {
     }
     
     virtual void print() const override {
-      errs() << "FunctionValue[";
+      errs() << "FuncValue[";
       errs() << fun->getName();
       errs() << "]";
     }

@@ -74,7 +74,7 @@ namespace ConcreteAAM {
       auto result = store->lookup(bind);
       if (result.hasValue()) {
         auto val = result.getValue();
-        assert(isa<LocationValue>(*val) && "The result from store should be a Location");
+        assert(isa<LocationValue>(*val) && "The result from store should be a Location/Function");
         auto newVal = std::static_pointer_cast<LocationValue>(val);
         return newVal->getLocation();
       }
