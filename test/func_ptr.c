@@ -5,5 +5,7 @@ int add(int x, int y) {
 int main() {
   int (*add_ptr)(int, int);
   add_ptr = &add;
-  int a = add_ptr(3, 4);
+  int (*another_add_ptr)(int, int);
+  another_add_ptr = add_ptr;
+  int a = another_add_ptr(3, 4);
 }

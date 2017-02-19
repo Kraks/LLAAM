@@ -18,11 +18,14 @@ define i32 @add(i32, i32) #0 {
 ; Function Attrs: nounwind ssp uwtable
 define i32 @main() #0 {
   %1 = alloca i32 (i32, i32)*, align 8
-  %2 = alloca i32, align 4
+  %2 = alloca i32 (i32, i32)*, align 8
+  %3 = alloca i32, align 4
   store i32 (i32, i32)* @add, i32 (i32, i32)** %1, align 8
-  %3 = load i32 (i32, i32)*, i32 (i32, i32)** %1, align 8
-  %4 = call i32 %3(i32 3, i32 4)
-  store i32 %4, i32* %2, align 4
+  %4 = load i32 (i32, i32)*, i32 (i32, i32)** %1, align 8
+  store i32 (i32, i32)* %4, i32 (i32, i32)** %2, align 8
+  %5 = load i32 (i32, i32)*, i32 (i32, i32)** %2, align 8
+  %6 = call i32 %5(i32 3, i32 4)
+  store i32 %6, i32* %3, align 4
   ret i32 0
 }
 
