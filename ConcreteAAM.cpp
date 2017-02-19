@@ -67,7 +67,7 @@ namespace ConcreteAAM {
         return addr;
       }
     }
-    else if (lhsType->isPointerTy()){
+    else if (lhsType->isPointerTy()) {
       std::shared_ptr<ConcreteStore> store = conf->getStore();
       std::shared_ptr<Location> bind = std::make_shared<BindAddr>(lhs, fp);
       

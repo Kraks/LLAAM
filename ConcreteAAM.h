@@ -243,7 +243,7 @@ namespace ConcreteAAM {
     }
     
     StatePtrType next() {
-      // Core instruction:
+      // Core instructions:
       //    StoreInst, LoadInst, AllocaInst, ReturnInst
       //    CallInst @malloc, CallInst @free
       // TODO: implement the real next()
@@ -368,8 +368,8 @@ namespace ConcreteAAM {
         errs() << "\n";
         */
         
-        auto targetAddr = addrsOf(op0, this->getFp(), this->getConf(), *ConcreteState::getModule());
-        auto valOpt = this->getConf()->getStore()->lookup(targetAddr);
+        auto fromAddr = addrsOf(op0, this->getFp(), this->getConf(), *ConcreteState::getModule());
+        auto valOpt = this->getConf()->getStore()->lookup(fromAddr);
         assert(valOpt.hasValue());
         auto val = valOpt.getValue();
         
@@ -428,9 +428,16 @@ namespace ConcreteAAM {
             newStore->inplaceUpdate(destAddr, val);
           }
           else {
+            auto fromAddr = BindAddr::makeBindAddr(op0, this->getFp());
+            auto fromValOpt = this->getConf()->getStore()->lookup(fromAddr);
+            assert(fromValOpt.hasValue());
+            auto fromVal = fromValOpt.getValue();
+            newStore->inplaceUpdate(destAddr, fromVal);
+            /*
             auto fromAddr = addrsOf(op0, getFp(), getConf(), *ConcreteState::getModule());
             auto val = LocationValue::makeLocationValue(fromAddr);
             newStore->inplaceUpdate(destAddr, val);
+            */
           }
         }
         
