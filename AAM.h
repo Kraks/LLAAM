@@ -614,7 +614,7 @@ namespace AAM {
     typedef std::map<Key, Val, Less> StoreMap;
     
     Store() {};
-    Store(StoreMap m) : m(m) {};
+    Store(StoreMap m, std::string name = "") : m(m), name(name) {};
     
     size_t size() const {
       return m.size();
@@ -640,9 +640,8 @@ namespace AAM {
       return newStore;
     };
     
-    Store<K, V, Less>& inplaceUpdate(Store<K,V,Less>::Key key, Store<K,V,Less>::Val val) {
+    void inplaceUpdate(Store<K,V,Less>::Key key, Store<K,V,Less>::Val val) {
       m[key] = val;
-      return *this;
     }
     
     // Immutable remove
@@ -653,9 +652,9 @@ namespace AAM {
       return newStore;
     };
     
-    Store<K,V,Less>& inplaceRemove(Store<K,V,Less>::Key key) {
+    void inplaceRemove(Store<K,V,Less>::Key key) {
+      
       m.erase(key);
-      return *this;
     };
     
     inline bool operator==(Store<K,V,Less>& that) {
@@ -692,6 +691,7 @@ namespace AAM {
   
   private:
     StoreMap m;
+    std::string name;
   };
   
   template<class StoreType, class SuccType, class PredType, class MeasureType>

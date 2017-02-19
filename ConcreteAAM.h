@@ -14,6 +14,12 @@ namespace ConcreteAAM {
   
   #define MIN_ALLOC 4;
   
+  typedef uint8_t RemoveOption;
+  const RemoveOption RM_ALL   = 0xFF;
+  const RemoveOption RM_STORE = 0x01;
+  const RemoveOption RM_SUCC  = 0x02;
+  const RemoveOption RM_PRED  = 0x04;
+  
   class ConcreteHeapAddr : public HeapAddr {
   public:
     typedef std::shared_ptr<ConcreteHeapAddr> ConcreteHeapAddrPtrType;
@@ -153,10 +159,33 @@ namespace ConcreteAAM {
       auto newConf = makeConf(this->getStore()->remove(key),
                               this->getSucc()->remove(key),
                               this->getPred()->remove(key));
+      /*
       assert(newConf->getStore()->size() == (this->getStore()->size()-1));
       assert(newConf->getSucc()->size() == (this->getSucc()->size()-1));
       assert(newConf->getPred()->size() == (this->getPred()->size()-1));
+      */
       return newConf;
+    }
+    
+    void inplaceRemove(ConcreteStore::Key key, RemoveOption opt = ConcreteAAM::RM_ALL) {
+      if (opt & ConcreteAAM::RM_STORE) {
+        errs() << "Remove ";
+        key->print();
+        errs() <<" from store\n";
+        this->getStore()->inplaceRemove(key);
+      }
+      if (opt & ConcreteAAM::RM_SUCC) {
+        errs() << "Remove ";
+        key->print();
+        errs() << " from succ\n";
+        this->getSucc()->inplaceRemove(key);
+      }
+      if (opt & ConcreteAAM::RM_PRED) {
+        errs() << "Remove ";
+        key->print();
+        errs() << " from pred\n";
+        this->getPred()->inplaceRemove(key);
+      }
     }
     
     static ConfPtrType makeConf(StorePtrType store, SuccPtrType succ, PredPtrType pred) {
@@ -233,38 +262,30 @@ namespace ConcreteAAM {
         if (*fp == *ConcreteStackAddr::initFp()) {
           return this->copy();
         }
-        else if (returnInst->getNumOperands() > 0) {
-          //TODO: GC
+  
+        auto contValOpt = this->getConf()->getStore()->lookup(this->getFp());
+        assert(contValOpt.hasValue());
+        auto contVal = contValOpt.getValue();
+        assert(isa<Cont>(&*contVal));
+        auto cont = dyn_cast<Cont>(&*contVal);
+        auto newStore = this->getConf()->getStore()->copy();
+        
+        if (returnInst->getNumOperands() > 0) {
           auto ret = returnInst->getOperand(0);
           auto rval = evalAtom(ret, this->getFp(), this->getConf(), *ConcreteState::getModule());
-          
-          auto contValOpt = this->getConf()->getStore()->lookup(this->getFp());
-          assert(contValOpt.hasValue());
-          auto contVal = contValOpt.getValue();
-          assert(isa<Cont>(&*contVal));
-          auto cont = dyn_cast<Cont>(&*contVal);
-          
           auto lhs = cont->getLhs();
           auto destAddr = BindAddr::makeBindAddr(lhs, cont->getFrameAddr());
-          auto newStore = this->getConf()->getStore()->copy();
           newStore->inplaceUpdate(destAddr, rval);
-          auto newConf = ConcreteConf::makeConf(newStore, getConf()->getSucc(), getConf()->getPred());
-          
-          auto calleeStmt = Stmt::makeStmt(cont->getInst());
-          auto newState = ConcreteState::makeState(calleeStmt, cont->getFrameAddr(), newConf, cont->getStackAddr());
-          return newState;
         }
-        else {
-          auto contValOpt = this->getConf()->getStore()->lookup(this->getFp());
-          assert(contValOpt.hasValue());
-          auto contVal = contValOpt.getValue();
-          assert(isa<Cont>(&*contVal));
-          auto cont = dyn_cast<Cont>(&*contVal);
-  
-          auto calleeStmt = Stmt::makeStmt(cont->getInst());
-          auto newState = ConcreteState::makeState(calleeStmt, cont->getFrameAddr(), getConf(), cont->getStackAddr());
-          return newState;
-        }
+        
+        auto newConf = ConcreteConf::makeConf(newStore, getConf()->getSucc(), getConf()->getPred());
+        //GC
+        newConf->inplaceRemove(fp);
+        newConf->inplaceRemove(cont->getStackAddr(), ConcreteAAM::RM_PRED);
+        
+        auto calleeStmt = Stmt::makeStmt(cont->getInst());
+        auto newState = ConcreteState::makeState(calleeStmt, cont->getFrameAddr(), newConf, cont->getStackAddr());
+        return newState;
       }
       else if (isa<InvokeInst>(inst)) {
         
@@ -286,7 +307,7 @@ namespace ConcreteAAM {
           
         }
         else {
-          //TODO pass a pointer to function.
+          // TODO: call a function pointer
           auto entry = getEntry(*function);
           auto entryStmt = Stmt::makeStmt(entry);
           std::vector<std::shared_ptr<AbstractValue>> ds;
@@ -371,7 +392,7 @@ namespace ConcreteAAM {
         errs() << "dest: ";
         destAddr->print();
         errs() << "\n";
-        
+  
         auto newStore = this->getConf()->getStore()->copy();
         
         if (op0_ty->isIntegerTy()) {
