@@ -50,24 +50,24 @@ namespace ConcreteAAM {
                                     std::shared_ptr<ConcreteConf> conf,
                                     Module& M) {
     Type* lhsType = lhs->getType();
+    std::string var = lhs->getName();
     errs() << "lhsType: " << lhsType->getTypeID() << ", ";
     lhsType->print(errs());
     errs() << "\n";
-    
+    errs() << "var name: " << var << "\n";
+  
     if (lhsType->isIntegerTy()) {
-      std::string var = lhs->getName();
-      if (M.getGlobalVariable(var)) {
-        return std::make_shared<BindAddr>(lhs, ConcreteStackAddr::initFp());
-      }
-      else {
-        auto addr = std::make_shared<BindAddr>(lhs, fp);
-        errs() << "make a new bind addr: ";
-        addr->print();
-        errs() << "\n";
-        return addr;
-      }
+      auto addr = std::make_shared<BindAddr>(lhs, fp);
+      errs() << "make a new bind addr: ";
+      addr->print();
+      errs() << "\n";
+      return addr;
     }
     else if (lhsType->isPointerTy()) {
+      if (M.getGlobalVariable(var, true)) {
+        return std::make_shared<BindAddr>(lhs, ConcreteStackAddr::initFp());
+      }
+      
       std::shared_ptr<ConcreteStore> store = conf->getStore();
       std::shared_ptr<Location> bind = std::make_shared<BindAddr>(lhs, fp);
       
