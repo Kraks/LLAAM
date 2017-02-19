@@ -90,7 +90,6 @@ namespace ConcreteAAM {
     else {
       assert(false && "TODO");
     }
-    
   }
   
   std::shared_ptr<ConcreteStore> getInitStore(Module& M) {

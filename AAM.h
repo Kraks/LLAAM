@@ -410,9 +410,12 @@ namespace AAM {
   
   class LocationValue : public AbstractValue {
     std::shared_ptr<Location> loc;
+    size_t step;
   public:
     typedef std::shared_ptr<LocationValue> LocValPtrType;
-    LocationValue(std::shared_ptr<Location> loc) : AbstractValue(KLocationV), loc(loc) {}
+    
+    LocationValue(std::shared_ptr<Location> loc, size_t step) :
+      AbstractValue(KLocationV), loc(loc), step(step) {}
     
     static bool classof(const AbstractValue* v) {
       return v->getKind() == KLocationV;
@@ -422,8 +425,8 @@ namespace AAM {
       return loc;
     }
     
-    static LocValPtrType makeLocationValue(std::shared_ptr<Location> loc) {
-      std::shared_ptr<LocationValue> locVal = std::make_shared<LocationValue>(loc);
+    static LocValPtrType makeLocationValue(std::shared_ptr<Location> loc, size_t step) {
+      std::shared_ptr<LocationValue> locVal = std::make_shared<LocationValue>(loc, step);
       return locVal;
     }
     
@@ -437,7 +440,7 @@ namespace AAM {
     virtual void print() const override {
       errs() << "LocationValue[";
       loc->print();
-      errs() << "]";
+      errs() << "," << step << "]";
     }
 
   protected:

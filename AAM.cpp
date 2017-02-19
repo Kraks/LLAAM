@@ -71,8 +71,8 @@ namespace {
       assert(!(*baddr1.get() == *sp1.get()));
       assert(!(*baddr1.get() == *hp2.get()));
       
-      shared_ptr<LocationValue> lv1 = make_shared<LocationValue>(sp1);
-      shared_ptr<LocationValue> lv2 = make_shared<LocationValue>(sp2);
+      shared_ptr<LocationValue> lv1 = make_shared<LocationValue>(sp1, 1);
+      shared_ptr<LocationValue> lv2 = make_shared<LocationValue>(sp2, 1);
       
       //errs() << "stack ptrs eq: " << (sp1 == sp2) << "\n"; // false
       ConcreteStore store({{sp1, f1}, {sp2, f2}, {hp1, pv}, {hp2, pv}, {baddr1, lv1}, {baddr2, lv2}});

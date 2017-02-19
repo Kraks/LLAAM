@@ -247,6 +247,7 @@ namespace ConcreteAAM {
       //    StoreInst, LoadInst, AllocaInst, ReturnInst
       //    CallInst @malloc, CallInst @free
       // TODO: implement the real next()
+      // TODO: sext, trunc, bitcast
       Instruction* inst = getControl()->getInst();
       Instruction* nextInst = getSyntacticNextInst(inst);
       
@@ -330,6 +331,9 @@ namespace ConcreteAAM {
         //errs() << "op num: " << callInst->getNumOperands() << "\n";
         
         if (fname == "malloc") {
+          auto store = this->getConf()->getStore();
+          auto succ = this->getConf()->getSucc();
+          auto pred = this->getConf()->getPred();
           
         }
         else if (fname == "free") {
@@ -452,24 +456,41 @@ namespace ConcreteAAM {
         auto newState = ConcreteState::makeState(nextStmt, this->getFp(), newConf, this->getSp());
         return newState;
       }
+      else if (isa<BitCastInst>(inst)) {
+        
+      }
+      else if (isa<SExtInst>(inst)) {
+        SExtInst* sExtInst = dyn_cast<SExtInst>(inst);
+        Value* op0 = sExtInst->getOperand(0);
+        Value* op1 = sExtInst->getOperand(1);
+        
+      }
+      else if (isa<TruncInst>(inst)) {
+        TruncInst* truncInst = dyn_cast<TruncInst>(inst);
+        Value* op0 = truncInst->getOperand(0);
+        Value* op1 = truncInst->getOperand(1);
+        
+      }
       else if (isa<AllocaInst>(inst)) {
         AllocaInst* allocaInst = dyn_cast<AllocaInst>(inst);
         Type* allocaType = allocaInst->getAllocatedType();
-        // The typeByteSize is the number of bytes, for example, int_32 is 4 bytes.
-        // Note: For now, assuming that the only type is int_32, and we can set the
-        // minimum allocation size in store to 4 byte.
-        uint64_t typeByteSize = ConcreteState::getModule()->getDataLayout().getTypeAllocSize(allocaType);
-        assert(typeByteSize > 0);
-  
-        // TODO: If there are other primitive types (for example, byte, short or long),
-        // TODO: then we need to set the minimum allocation size to 1 byte
-        // TODO: and also handle the cast operations.
-        //uint64_t nAlloc = typeByteSize / MIN_ALLOC;
-        uint64_t nAlloc = 1;
         
-        bool isArrayAlloc = allocaInst->isArrayAllocation();
-        Value* arraySize = allocaInst->getArraySize(); //TODO: allocate array size
-        if (isArrayAlloc && isa<ConstantInt>(arraySize)) { errs() << "array size is constant\n"; }
+        uint64_t totalByteSize = ConcreteState::getModule()->getDataLayout().getTypeAllocSize(allocaType);
+        assert(totalByteSize > 0);
+        uint64_t nAlloc = totalByteSize;
+        uint64_t step = totalByteSize;
+        
+        if (auto* allocaArrayType = dyn_cast<ArrayType>(allocaType)) {
+          //TODO: multidimensional arrays
+          Type* eleType = allocaArrayType->getElementType();
+          errs() << "eleType: ";
+          eleType->print(errs());
+          uint64_t eleNum = allocaArrayType->getNumElements();
+          errs() << " num: " << eleNum << "\n";
+          
+          step = ConcreteState::getModule()->getDataLayout().getTypeAllocSize(eleType);
+          assert(step * eleNum == nAlloc);
+        }
         
         /*
         errs() << "allocaInst num oprands: " << allocaInst->getNumOperands() << "\n";
@@ -487,7 +508,7 @@ namespace ConcreteAAM {
         auto addrs = ConcreteStackAddr::allocate(nAlloc);
         
         auto newStore = store->copy();
-        auto locVal = LocationValue::makeLocationValue(addrs->front());
+        auto locVal = LocationValue::makeLocationValue(addrs->front(), step);
         for (auto& addr : *addrs) {
           newStore->inplaceUpdate(addr, bot);
         }
