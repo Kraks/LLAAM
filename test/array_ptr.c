@@ -1,6 +1,7 @@
 int add(int* x) {
-  //return x[0] + x[1];
-  return *x + *(x+1);
+  int n = x[0] + x[1];
+  int m = *x + *(x+1);
+  return n + m;
 }
 
 int main() {

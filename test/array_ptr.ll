@@ -6,14 +6,28 @@ target triple = "x86_64-apple-macosx10.12.0"
 ; Function Attrs: nounwind ssp uwtable
 define i32 @add(i32*) #0 {
   %2 = alloca i32*, align 8
+  %3 = alloca i32, align 4
+  %4 = alloca i32, align 4
   store i32* %0, i32** %2, align 8
-  %3 = load i32*, i32** %2, align 8
-  %4 = load i32, i32* %3, align 4
   %5 = load i32*, i32** %2, align 8
-  %6 = getelementptr inbounds i32, i32* %5, i64 1
+  %6 = getelementptr inbounds i32, i32* %5, i64 0
   %7 = load i32, i32* %6, align 4
-  %8 = add nsw i32 %4, %7
-  ret i32 %8
+  %8 = load i32*, i32** %2, align 8
+  %9 = getelementptr inbounds i32, i32* %8, i64 1
+  %10 = load i32, i32* %9, align 4
+  %11 = add nsw i32 %7, %10
+  store i32 %11, i32* %3, align 4
+  %12 = load i32*, i32** %2, align 8
+  %13 = load i32, i32* %12, align 4
+  %14 = load i32*, i32** %2, align 8
+  %15 = getelementptr inbounds i32, i32* %14, i64 1
+  %16 = load i32, i32* %15, align 4
+  %17 = add nsw i32 %13, %16
+  store i32 %17, i32* %4, align 4
+  %18 = load i32, i32* %3, align 4
+  %19 = load i32, i32* %4, align 4
+  %20 = add nsw i32 %18, %19
+  ret i32 %20
 }
 
 ; Function Attrs: nounwind ssp uwtable
