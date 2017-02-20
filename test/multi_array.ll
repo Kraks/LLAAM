@@ -6,9 +6,14 @@ target triple = "x86_64-apple-macosx10.12.0"
 ; Function Attrs: nounwind ssp uwtable
 define i32 @main() #0 {
   %1 = alloca [3 x [4 x i8]], align 1
-  %2 = getelementptr inbounds [3 x [4 x i8]], [3 x [4 x i8]]* %1, i64 0, i64 1
-  %3 = getelementptr inbounds [4 x i8], [4 x i8]* %2, i64 0, i64 3
-  store i8 3, i8* %3, align 1
+  %2 = alloca [3 x [4 x [5 x i8]]], align 16
+  %3 = getelementptr inbounds [3 x [4 x i8]], [3 x [4 x i8]]* %1, i64 0, i64 1
+  %4 = getelementptr inbounds [4 x i8], [4 x i8]* %3, i64 0, i64 3
+  store i8 3, i8* %4, align 1
+  %5 = getelementptr inbounds [3 x [4 x [5 x i8]]], [3 x [4 x [5 x i8]]]* %2, i64 0, i64 2
+  %6 = getelementptr inbounds [4 x [5 x i8]], [4 x [5 x i8]]* %5, i64 0, i64 3
+  %7 = getelementptr inbounds [5 x i8], [5 x i8]* %6, i64 0, i64 4
+  store i8 5, i8* %7, align 1
   ret i32 0
 }
 

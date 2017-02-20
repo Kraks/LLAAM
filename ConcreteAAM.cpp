@@ -27,6 +27,56 @@ namespace ConcreteAAM {
   // TODO: addrOf
   // TODO: Prim operator
   
+  std::shared_ptr<IntValue> primOp(unsigned op, Value* lhs, Value* rhs,
+                                   std::shared_ptr<FrameAddr> fp,
+                                   std::shared_ptr<ConcreteConf> conf) {
+    APInt lhs_v;
+    APInt rhs_v;
+  
+    assert(lhs->getType()->isIntegerTy());
+    assert(rhs->getType()->isIntegerTy());
+  
+    if (ConstantInt* lhs_ci = dyn_cast<ConstantInt>(lhs)) {
+      lhs_v = lhs_ci->getValue();
+    }
+    else {
+      auto addr = addrsOf(lhs, fp, conf, *ConcreteState::getModule());
+      auto valOpt = conf->getStore()->lookup(addr);
+      assert(valOpt.hasValue());
+      auto val = valOpt.getValue();
+      assert(isa<IntValue>(&*val));
+      auto intVal = dyn_cast<IntValue>(&*val);
+      lhs_v = intVal->getValue();
+    }
+  
+    if (ConstantInt* rhs_ci = dyn_cast<ConstantInt>(rhs)) {
+      rhs_v = rhs_ci->getValue();
+    }
+    else {
+      auto addr = addrsOf(rhs, fp, conf, *ConcreteState::getModule());
+      auto valOpt = conf->getStore()->lookup(addr);
+      assert(valOpt.hasValue());
+      auto val = valOpt.getValue();
+      assert(isa<IntValue>(&*val));
+      auto intVal = dyn_cast<IntValue>(&*val);
+      rhs_v = intVal->getValue();
+    }
+  
+    APInt result;
+    if (Instruction::Add == op) {
+      result = lhs_v + rhs_v;
+    }
+    if (Instruction::Sub == op) {
+      result = lhs_v - rhs_v;
+    }
+    if (Instruction::Mul == op) {
+      result = lhs_v * rhs_v;
+    }
+    
+    auto resultVal = IntValue::makeInt(result);
+    return resultVal;
+  }
+  
   std::shared_ptr<AbstractValue> evalAtom(Value* val,
                                           std::shared_ptr<FrameAddr> fp,
                                           std::shared_ptr<ConcreteConf> conf,

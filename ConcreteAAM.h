@@ -197,6 +197,10 @@ namespace ConcreteAAM {
   std::shared_ptr<ConcreteStore> getInitStore(Module& M);
   std::shared_ptr<ConcreteConf>  getInitConf(Module& M);
   
+  std::shared_ptr<IntValue> primOp(unsigned op, Value* lhs, Value* rhs,
+                                   std::shared_ptr<FrameAddr> fp,
+                                   std::shared_ptr<ConcreteConf> conf);
+  
   std::shared_ptr<AbstractValue> evalAtom(ConstantInt* i,
                                           std::shared_ptr<FrameAddr> fp,
                                           std::shared_ptr<ConcreteConf> conf,
@@ -492,7 +496,6 @@ namespace ConcreteAAM {
         else if (auto* allocaStructType = dyn_cast<StructType>(allocaType)) {
           size_t nEle = allocaStructType->getStructNumElements();
           errs() << "num ele: " << nEle << "\n";
-          //TODO: allocating struct type
         }
         
         /*
@@ -558,12 +561,13 @@ namespace ConcreteAAM {
   
         uint64_t n = 0;
         auto ty = srcObj->getType();
+        
         for (int i = 1; i < opNum; i++) {
           Value* offset = ptrInst->getOperand(i);
           uint64_t offset_v = 0;
           uint64_t ty_size = 0;
           if (ConstantInt* offset_ci = dyn_cast<ConstantInt>(offset)) {
-            offset_v = offset_ci->getValue().getSExtValue();
+            offset_v = offset_ci->getValue().getZExtValue();
             if (ty->isPointerTy()) {
               ty = ty->getPointerElementType();
             }
@@ -583,7 +587,6 @@ namespace ConcreteAAM {
           }
         }
         
-        // TODO: Now assume there are 2 indexing arguments. Need to generalize this.
         auto addr = src->getLocation();
         auto succ = this->getConf()->getSucc();
         for (int i = 0; i < n; i++) {
@@ -601,49 +604,11 @@ namespace ConcreteAAM {
         return newState;
       }
       else if (Instruction::Add == inst->getOpcode() ||
-               Instruction::Sub == inst->getOpcode()) {
+               Instruction::Sub == inst->getOpcode() ||
+               Instruction::Mul == inst->getOpcode()) {
         Value* lhs = inst->getOperand(0);
         Value* rhs = inst->getOperand(1);
-        APInt lhs_v;
-        APInt rhs_v;
-        
-        assert(lhs->getType()->isIntegerTy());
-        assert(rhs->getType()->isIntegerTy());
-        
-        if (ConstantInt* lhs_ci = dyn_cast<ConstantInt>(lhs)) {
-          lhs_v = lhs_ci->getValue();
-        }
-        else {
-          auto addr = addrsOf(lhs, this->getFp(), this->getConf(), *ConcreteState::getModule());
-          auto valOpt = this->getConf()->getStore()->lookup(addr);
-          assert(valOpt.hasValue());
-          auto val = valOpt.getValue();
-          assert(isa<IntValue>(&*val));
-          auto intVal = dyn_cast<IntValue>(&*val);
-          lhs_v = intVal->getValue();
-        }
-        
-        if (ConstantInt* rhs_ci = dyn_cast<ConstantInt>(rhs)) {
-          rhs_v = rhs_ci->getValue();
-        }
-        else {
-          auto addr = addrsOf(rhs, this->getFp(), this->getConf(), *ConcreteState::getModule());
-          auto valOpt = this->getConf()->getStore()->lookup(addr);
-          assert(valOpt.hasValue());
-          auto val = valOpt.getValue();
-          assert(isa<IntValue>(&*val));
-          auto intVal = dyn_cast<IntValue>(&*val);
-          rhs_v = intVal->getValue();
-        }
-        
-        APInt result;
-        if (Instruction::Add == inst->getOpcode()) {
-          result = lhs_v + rhs_v;
-        }
-        if (Instruction::Sub == inst->getOpcode()) {
-          result = lhs_v - rhs_v;
-        }
-        auto resultVal = IntValue::makeInt(result);
+        auto resultVal = primOp(inst->getOpcode(), lhs, rhs, this->getFp(), this->getConf());
         auto destAddr = addrsOf(inst, this->getFp(), this->getConf(), *ConcreteState::getModule());
         auto newStore = this->getConf()->getStore()->copy();
         newStore->inplaceUpdate(destAddr, resultVal);
