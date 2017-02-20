@@ -480,7 +480,6 @@ namespace ConcreteAAM {
         uint64_t step = totalByteSize;
         
         if (auto* allocaArrayType = dyn_cast<ArrayType>(allocaType)) {
-          //TODO: multidimensional arrays
           Type* eleType = allocaArrayType->getElementType();
           errs() << "eleType: ";
           eleType->print(errs());
@@ -492,8 +491,8 @@ namespace ConcreteAAM {
         }
         else if (auto* allocaStructType = dyn_cast<StructType>(allocaType)) {
           size_t nEle = allocaStructType->getStructNumElements();
+          errs() << "num ele: " << nEle << "\n";
           //TODO: allocating struct type
-          assert(false);
         }
         
         /*
@@ -511,7 +510,7 @@ namespace ConcreteAAM {
         auto addrs = ConcreteStackAddr::allocate(nAlloc);
         
         auto newStore = store->copy();
-        auto locVal = LocationValue::makeLocationValue(addrs->front(), step);
+        auto locVal = LocationValue::makeLocationValue(addrs->front(), step); //TODO: step
         for (auto& addr : *addrs) {
           newStore->inplaceUpdate(addr, bot);
         }
