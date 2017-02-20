@@ -5,10 +5,9 @@ target triple = "x86_64-apple-macosx10.12.0"
 
 ; Function Attrs: nounwind ssp uwtable
 define i32 @main() #0 {
-  %1 = alloca i32*, align 8
+  %1 = alloca i8*, align 8
   %2 = call i8* @malloc(i64 8)
-  %3 = bitcast i8* %2 to i32*
-  store i32* %3, i32** %1, align 8
+  store i8* %2, i8** %1, align 8
   ret i32 0
 }
 

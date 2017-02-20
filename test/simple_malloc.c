@@ -1,3 +1,3 @@
 int main() {
-  int* m = malloc(8);
+  char* m = malloc(8);
 }

@@ -361,19 +361,19 @@ namespace ConcreteAAM {
           newStore->inplaceUpdate(destAddr, locVal);
           
           auto newSucc = succ->copy();
-          for (unsigned long i = 0; i < addrs->size(); i++) {
+          for (unsigned long i = 0; i < addrs->size()-1; i++) {
             newSucc->inplaceUpdate(addrs->at(i), addrs->at(i+1));
           }
-          assert(newSucc->size() == (succ->size() + addrs->size()));
+          assert(newSucc->size() == (succ->size() + addrs->size() - 1));
           
           auto newPred = pred->copy();
           for (unsigned long i = addrs->size()-1; i > 0; i--) {
             newPred->inplaceUpdate(addrs->at(i), addrs->at(i-1));
           }
-          assert(newPred->size() == (pred->size() + addrs->size()));
+          assert(newPred->size() == (pred->size() + addrs->size() - 1));
   
           auto newConf = ConcreteConf::makeConf(newStore, newSucc, newPred);
-          auto newState = ConcreteState::makeState(nextInst, getFp(), newConf, getSp());
+          auto newState = ConcreteState::makeState(nextStmt, getFp(), newConf, getSp());
           return newState;
         }
         else if (fname == "free") {
