@@ -377,7 +377,23 @@ namespace ConcreteAAM {
           return newState;
         }
         else if (fname == "free") {
+          auto v = callInst->getOperand(0);
+          auto vAddr = BindAddr::makeBindAddr(v, getFp());
+          auto locValOpt = getConf()->getStore()->lookup(vAddr);
           
+          auto newConf = getConf()->copy();
+          if (locValOpt.hasValue()) {
+            //TODO: recursively deallocation?
+            auto locVal = locValOpt.getValue();
+            auto loc = dyn_cast<LocationValue>(&*locVal);
+            newConf->inplaceRemove(loc->getLocation());
+          }
+          else {
+            assert(false && "Invalid pointer");
+          }
+          
+          auto newState = ConcreteState::makeState(nextStmt, getFp(), newConf, getSp());
+          return newState;
         }
         else {
           auto entry = getEntry(*function);
