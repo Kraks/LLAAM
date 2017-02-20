@@ -89,7 +89,6 @@ namespace ConcreteAAM {
     assert(valOpt.hasValue());
     auto value = valOpt.getValue();
     return value;
-    
     // If val is a sizeof operation
   }
   

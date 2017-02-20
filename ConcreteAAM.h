@@ -329,18 +329,52 @@ namespace ConcreteAAM {
         //errs() << "function name: " << fname << "\n";
         
         if (fname == "malloc") {
+          auto mallocSize = callInst->getOperand(0);
+          int64_t nMalloc = 0;
+          if (ConstantInt* mallocSizeCI = dyn_cast<ConstantInt>(mallocSize)) {
+            nMalloc = mallocSizeCI->getSExtValue();
+          }
+          else {
+            auto sizeVal = evalAtom(mallocSize, getFp(), getConf(), *ConcreteState::getModule());
+            assert(isa<IntValue>(&*sizeVal));
+            nMalloc = dyn_cast<IntValue>(&*sizeVal)->getValue().getSExtValue();
+          }
+          errs() << "malloc size: " << nMalloc << "\n";
+  
+          //TODO: can malloc a negative number?
+          assert(nMalloc > 0);
+          auto addrs = ConcreteHeapAddr::allocate(nMalloc + 1);
+          
           auto store = this->getConf()->getStore();
           auto succ = this->getConf()->getSucc();
           auto pred = this->getConf()->getPred();
-          
-          auto mallocSize = callInst->getOperand(1);
-          if (isa<ConstantInt>(mallocSize)) {
-            
+  
+          auto bot = BotValue::getInstance();
+          auto newStore = store->copy();
+          for (auto& addr : *addrs) {
+            newStore->inplaceUpdate(addr, bot);
           }
-          else {
-            
-          }
+          assert(newStore->size() == (store->size() + addrs->size()));
           
+          auto destAddr = BindAddr::makeBindAddr(inst, this->getFp());
+          auto locVal = LocationValue::makeLocationValue(addrs->front(), 4); //TODO: step
+          newStore->inplaceUpdate(destAddr, locVal);
+          
+          auto newSucc = succ->copy();
+          for (unsigned long i = 0; i < addrs->size(); i++) {
+            newSucc->inplaceUpdate(addrs->at(i), addrs->at(i+1));
+          }
+          assert(newSucc->size() == (succ->size() + addrs->size()));
+          
+          auto newPred = pred->copy();
+          for (unsigned long i = addrs->size()-1; i > 0; i--) {
+            newPred->inplaceUpdate(addrs->at(i), addrs->at(i-1));
+          }
+          assert(newPred->size() == (pred->size() + addrs->size()));
+  
+          auto newConf = ConcreteConf::makeConf(newStore, newSucc, newPred);
+          auto newState = ConcreteState::makeState(nextInst, getFp(), newConf, getSp());
+          return newState;
         }
         else if (fname == "free") {
           
@@ -519,8 +553,8 @@ namespace ConcreteAAM {
         }
         assert(newSucc->size() == (succ->size() + addrs->size()));
         
+        //TODO test it
         auto newPred = pred->copy();
-        std::shared_ptr<Location> last = *addrs->begin();
         newPred->inplaceUpdate(aTop, addrs->back());
         for (unsigned long i = addrs->size()-1; i > 0; i--) {
           newPred->inplaceUpdate(addrs->at(i), addrs->at(i-1));
