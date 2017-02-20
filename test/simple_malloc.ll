@@ -8,6 +8,11 @@ define i32 @main() #0 {
   %1 = alloca i8*, align 8
   %2 = call i8* @malloc(i64 8)
   store i8* %2, i8** %1, align 8
+  %3 = load i8*, i8** %1, align 8
+  store i8 1, i8* %3, align 1
+  %4 = load i8*, i8** %1, align 8
+  %5 = getelementptr inbounds i8, i8* %4, i64 1
+  store i8 2, i8* %5, align 1
   ret i32 0
 }
 

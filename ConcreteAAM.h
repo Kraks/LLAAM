@@ -357,7 +357,7 @@ namespace ConcreteAAM {
           assert(newStore->size() == (store->size() + addrs->size()));
           
           auto destAddr = BindAddr::makeBindAddr(inst, this->getFp());
-          auto locVal = LocationValue::makeLocationValue(addrs->front(), 4); //TODO: step
+          auto locVal = LocationValue::makeLocationValue(addrs->front());
           newStore->inplaceUpdate(destAddr, locVal);
           
           auto newSucc = succ->copy();
@@ -534,7 +534,7 @@ namespace ConcreteAAM {
         auto addrs = ConcreteStackAddr::allocate(nAlloc);
         
         auto newStore = store->copy();
-        auto locVal = LocationValue::makeLocationValue(addrs->front(), step); //TODO: step
+        auto locVal = LocationValue::makeLocationValue(addrs->front());
         for (auto& addr : *addrs) {
           newStore->inplaceUpdate(addr, bot);
         }
@@ -625,7 +625,7 @@ namespace ConcreteAAM {
         
         auto newStore = this->getConf()->getStore()->copy();
         auto destAddr = BindAddr::makeBindAddr(ptrInst, this->getFp());
-        auto locVal = LocationValue::makeLocationValue(addr, src->getStep()); //TODO: step
+        auto locVal = LocationValue::makeLocationValue(addr);
         newStore->inplaceUpdate(destAddr, locVal);
         
         auto newConf = ConcreteConf::makeConf(newStore, getConf()->getSucc(), getConf()->getPred());
