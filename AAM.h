@@ -425,6 +425,8 @@ namespace AAM {
       return loc;
     }
     
+    size_t getStep() { return step; }
+    
     static LocValPtrType makeLocationValue(std::shared_ptr<Location> loc, size_t step) {
       std::shared_ptr<LocationValue> locVal = std::make_shared<LocationValue>(loc, step);
       return locVal;

@@ -250,14 +250,15 @@ namespace ConcreteAAM {
       // TODO: sext, trunc, bitcast
       Instruction* inst = getControl()->getInst();
       Instruction* nextInst = getSyntacticNextInst(inst);
-      
       auto nextStmt = Stmt::makeStmt(nextInst);
       errs() << "\nCurrent state[" << myId << "] ";
       inst->dump();
+  
+      size_t opNum = inst->getNumOperands();
+      errs() << "op num: " << opNum << "\n";
       
       if (isa<ReturnInst>(inst)) {
         ReturnInst* returnInst = dyn_cast<ReturnInst>(inst);
-        size_t opNum = returnInst->getNumOperands();
         auto fp = this->getFp();
         
         //errs() << "op nums: " << opNum << "\n";
@@ -328,7 +329,6 @@ namespace ConcreteAAM {
         auto& formalArgs = function->getArgumentList();
         
         //errs() << "function name: " << fname << "\n";
-        //errs() << "op num: " << callInst->getNumOperands() << "\n";
         
         if (fname == "malloc") {
           auto store = this->getConf()->getStore();
@@ -378,7 +378,6 @@ namespace ConcreteAAM {
         auto destAddr = BindAddr::makeBindAddr(loadInst, this->getFp());
         
         /*
-        errs() << "load num oprands: " << loadInst->getNumOperands() << "\n";
         errs() << "op(0): ";
         op0->print(errs());
         errs() << "\n";
@@ -410,7 +409,6 @@ namespace ConcreteAAM {
         Type* op1_ty = op1->getType();
         
         /*
-        errs() << "store num oprands: " << storeInst->getNumOperands() << "\n";
         errs() << "op(0): ";
         storeInst->getOperand(0)->print(errs());
         errs() << ". type: " << storeInst->getOperand(0)->getType()->getTypeID();
@@ -477,6 +475,7 @@ namespace ConcreteAAM {
         
         uint64_t totalByteSize = ConcreteState::getModule()->getDataLayout().getTypeAllocSize(allocaType);
         assert(totalByteSize > 0);
+        errs() << "totalByteSize: " << totalByteSize << "\n";
         uint64_t nAlloc = totalByteSize;
         uint64_t step = totalByteSize;
         
@@ -491,12 +490,16 @@ namespace ConcreteAAM {
           step = ConcreteState::getModule()->getDataLayout().getTypeAllocSize(eleType);
           assert(step * eleNum == nAlloc);
         }
+        else if (auto* allocaStructType = dyn_cast<StructType>(allocaType)) {
+          size_t nEle = allocaStructType->getStructNumElements();
+          //TODO: allocating struct type
+          assert(false);
+        }
         
         /*
-        errs() << "allocaInst num oprands: " << allocaInst->getNumOperands() << "\n";
         errs() << "allocaInst array alloc? " << allocaInst->isArrayAllocation() << "\n";
-        errs() << "allocaInst alloca size: "  << allocaInst->getArraySize() << "\n";
         */
+        errs() << "allocaInst alloca size: "  << nAlloc << "\n";
         
         auto store = this->getConf()->getStore();
         auto succ = this->getConf()->getSucc();
@@ -544,7 +547,59 @@ namespace ConcreteAAM {
         BranchInst* branchInst = dyn_cast<BranchInst>(inst);
       }
       else if (isa<GetElementPtrInst>(inst)) {
+        GetElementPtrInst* ptrInst = dyn_cast<GetElementPtrInst>(inst);
         
+        auto srcObj = ptrInst->getOperand(0);
+        auto srcAddr = BindAddr::makeBindAddr(srcObj, this->getFp());
+        auto srcValOpt = this->getConf()->getStore()->lookup(srcAddr);
+        assert(srcValOpt.hasValue());
+        auto srcVal = srcValOpt.getValue();
+        assert(isa<LocationValue>(&*srcVal));
+        auto src = dyn_cast<LocationValue>(&*srcVal);
+  
+        uint64_t n = 0;
+        auto ty = srcObj->getType();
+        for (int i = 1; i < opNum; i++) {
+          Value* offset = ptrInst->getOperand(i);
+          uint64_t offset_v = 0;
+          uint64_t ty_size = 0;
+          if (ConstantInt* offset_ci = dyn_cast<ConstantInt>(offset)) {
+            offset_v = offset_ci->getValue().getSExtValue();
+            if (ty->isPointerTy()) {
+              ty = ty->getPointerElementType();
+            }
+            ty_size = ConcreteState::getModule()->getDataLayout().getTypeAllocSize(ty);
+            errs() << "ty size: " << ty_size << " offset: " << offset_v << "\n";
+            n += (ty_size * offset_v);
+          }
+          else {
+            //TODO: Now assume all offsets are constant int, need to handle variabel
+          }
+          
+          if (ty->isArrayTy()) {
+            ty = ty->getArrayElementType();
+          }
+          else if (ty->isStructTy()) {
+            ty = ty->getStructElementType(offset_v);
+          }
+        }
+        
+        // TODO: Now assume there are 2 indexing arguments. Need to generalize this.
+        auto addr = src->getLocation();
+        auto succ = this->getConf()->getSucc();
+        for (int i = 0; i < n; i++) {
+          auto addrOpt = succ->lookup(addr);
+          addr = addrOpt.getValue();
+        }
+        
+        auto newStore = this->getConf()->getStore()->copy();
+        auto destAddr = BindAddr::makeBindAddr(ptrInst, this->getFp());
+        auto locVal = LocationValue::makeLocationValue(addr, src->getStep()); //TODO: step
+        newStore->inplaceUpdate(destAddr, locVal);
+        
+        auto newConf = ConcreteConf::makeConf(newStore, getConf()->getSucc(), getConf()->getPred());
+        auto newState = ConcreteState::makeState(nextStmt, getFp(), newConf, getSp());
+        return newState;
       }
       else if (Instruction::Add == inst->getOpcode() ||
                Instruction::Sub == inst->getOpcode()) {

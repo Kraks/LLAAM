@@ -1,4 +1,8 @@
 int main() {
-  int ints[5];
-  char chars[4];
+  char chars[5];
+  chars[1] = 1;
+  chars[2] = 2;
+  chars[4] = 4;
 }
+
+
