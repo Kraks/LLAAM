@@ -25,7 +25,6 @@ namespace ConcreteAAM {
   /********  Auxiliary functions  ********/
   
   // TODO: addrOf
-  // TODO: Prim operator
   
   std::shared_ptr<IntValue> primOp(unsigned op, Value* lhs, Value* rhs,
                                    std::shared_ptr<FrameAddr> fp,
@@ -91,7 +90,6 @@ namespace ConcreteAAM {
     auto value = valOpt.getValue();
     return value;
     
-    // If val is a primitive operation, do the operation
     // If val is a sizeof operation
   }
   

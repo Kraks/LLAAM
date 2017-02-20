@@ -274,10 +274,7 @@ namespace ConcreteAAM {
             rval->print();
             errs() << "\n";
           }
-          else {
-            errs() << "Return: Void\n";
-          }
-          
+          else { errs() << "Return: Void\n"; }
           return this->copy();
         }
   
@@ -304,9 +301,6 @@ namespace ConcreteAAM {
         auto calleeStmt = Stmt::makeStmt(cont->getInst());
         auto newState = ConcreteState::makeState(calleeStmt, cont->getFrameAddr(), newConf, cont->getStackAddr());
         return newState;
-      }
-      else if (isa<InvokeInst>(inst)) {
-        //TODO
       }
       else if (isa<CallInst>(inst)) {
         CallInst* callInst = dyn_cast<CallInst>(inst);
@@ -338,6 +332,14 @@ namespace ConcreteAAM {
           auto store = this->getConf()->getStore();
           auto succ = this->getConf()->getSucc();
           auto pred = this->getConf()->getPred();
+          
+          auto mallocSize = callInst->getOperand(1);
+          if (isa<ConstantInt>(mallocSize)) {
+            
+          }
+          else {
+            
+          }
           
         }
         else if (fname == "free") {
@@ -458,21 +460,6 @@ namespace ConcreteAAM {
         auto newState = ConcreteState::makeState(nextStmt, this->getFp(), newConf, this->getSp());
         return newState;
       }
-      else if (isa<BitCastInst>(inst)) {
-        
-      }
-      else if (isa<SExtInst>(inst)) {
-        SExtInst* sExtInst = dyn_cast<SExtInst>(inst);
-        Value* op0 = sExtInst->getOperand(0);
-        Value* op1 = sExtInst->getOperand(1);
-        
-      }
-      else if (isa<TruncInst>(inst)) {
-        TruncInst* truncInst = dyn_cast<TruncInst>(inst);
-        Value* op0 = truncInst->getOperand(0);
-        Value* op1 = truncInst->getOperand(1);
-        
-      }
       else if (isa<AllocaInst>(inst)) {
         AllocaInst* allocaInst = dyn_cast<AllocaInst>(inst);
         Type* allocaType = allocaInst->getAllocatedType();
@@ -545,9 +532,6 @@ namespace ConcreteAAM {
         auto newState = ConcreteState::makeState(nextStmt, this->getFp(), newConf, newStackPtr);
         return newState;
       }
-      else if (isa<BranchInst>(inst)) {
-        BranchInst* branchInst = dyn_cast<BranchInst>(inst);
-      }
       else if (isa<GetElementPtrInst>(inst)) {
         GetElementPtrInst* ptrInst = dyn_cast<GetElementPtrInst>(inst);
         
@@ -559,15 +543,15 @@ namespace ConcreteAAM {
         assert(isa<LocationValue>(&*srcVal));
         auto src = dyn_cast<LocationValue>(&*srcVal);
   
-        uint64_t n = 0;
+        int64_t n = 0;
         auto ty = srcObj->getType();
         
         for (int i = 1; i < opNum; i++) {
           Value* offset = ptrInst->getOperand(i);
-          uint64_t offset_v = 0;
+          int64_t offset_v = 0;
           uint64_t ty_size = 0;
           if (ConstantInt* offset_ci = dyn_cast<ConstantInt>(offset)) {
-            offset_v = offset_ci->getValue().getZExtValue();
+            offset_v = offset_ci->getValue().getSExtValue();
             if (ty->isPointerTy()) {
               ty = ty->getPointerElementType();
             }
@@ -576,22 +560,33 @@ namespace ConcreteAAM {
             n += (ty_size * offset_v);
           }
           else {
-            //TODO: Now assume all offsets are constant int, need to handle variabel
+            //TODO: Now assume all offsets are constant int, need to handle variable
           }
           
           if (ty->isArrayTy()) {
             ty = ty->getArrayElementType();
           }
           else if (ty->isStructTy()) {
+            assert(offset_v > 0);
             ty = ty->getStructElementType(offset_v);
           }
         }
         
+        errs() << "n: " << n << "\n";
         auto addr = src->getLocation();
         auto succ = this->getConf()->getSucc();
-        for (int i = 0; i < n; i++) {
-          auto addrOpt = succ->lookup(addr);
-          addr = addrOpt.getValue();
+        auto pred = this->getConf()->getPred();
+        if (n >= 0) {
+          for (int i = 0; i < n; i++) {
+            auto addrOpt = succ->lookup(addr);
+            addr = addrOpt.getValue();
+          }
+        }
+        else {
+          for (int i = 0; i > n; i--) {
+            auto addrOpt = pred->lookup(addr);
+            addr = addrOpt.getValue();
+          }
         }
         
         auto newStore = this->getConf()->getStore()->copy();
@@ -615,6 +610,24 @@ namespace ConcreteAAM {
         auto newConf = ConcreteConf::makeConf(newStore, this->getConf()->getSucc(), this->getConf()->getPred());
         auto newState = ConcreteState::makeState(nextStmt, this->getFp(), newConf, this->getSp());
         return newState;
+      }
+      else if (isa<BranchInst>(inst)) {
+        BranchInst* branchInst = dyn_cast<BranchInst>(inst);
+      }
+      else if (isa<BitCastInst>(inst)) {
+  
+      }
+      else if (isa<SExtInst>(inst)) {
+        SExtInst* sExtInst = dyn_cast<SExtInst>(inst);
+        Value* op0 = sExtInst->getOperand(0);
+        Value* op1 = sExtInst->getOperand(1);
+  
+      }
+      else if (isa<TruncInst>(inst)) {
+        TruncInst* truncInst = dyn_cast<TruncInst>(inst);
+        Value* op0 = truncInst->getOperand(0);
+        Value* op1 = truncInst->getOperand(1);
+  
       }
       else {
         
