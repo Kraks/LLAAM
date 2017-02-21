@@ -7,7 +7,13 @@
 #ifndef LLVM_CONCRETEAAM_H
 #define LLVM_CONCRETEAAM_H
 
-// TODO cast
+/**
+ * Supported instructions:
+ * StoreInst, AllocaInst, LoadInst,
+ * ReturnInst, CallInst, CallInst @malloc, CallInst @free,
+ * ICmpInst, SExtInst, ZExtInst, BitCastInst,
+ * BranchInst, GetElementPtrInst, TruncInst
+ */
 
 namespace ConcreteAAM {
   using namespace AAM;
@@ -243,11 +249,6 @@ namespace ConcreteAAM {
     }
     
     StatePtrType next() {
-      // Core instructions:
-      //    StoreInst, LoadInst, AllocaInst, ReturnInst
-      //    CallInst @malloc, CallInst @free
-      // TODO: implement the real next()
-      // TODO: sext, trunc, bitcast
       LLVMContext& C = getModule()->getContext();
       Instruction* inst = getControl()->getInst();
       Instruction* nextInst = getSyntacticNextInst(inst);
