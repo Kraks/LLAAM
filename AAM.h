@@ -333,6 +333,15 @@ namespace AAM {
       return false;
     }
   };
+  
+  struct AbstractValueLess {
+    bool operator()(const std::shared_ptr<AbstractValue>& a, const std::shared_ptr<AbstractValue>& b) const {
+      //errs() << "a hash: " << a->hashValue() << " b hash: " << b->hashValue() << "\n";
+      // TODO: using memory location?
+      // TODO: using equality if hash values collided?
+      return a->hashValue() < b->hashValue();
+    }
+  };
 
   class Cont : public AbstractValue {
   private:

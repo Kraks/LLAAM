@@ -714,7 +714,7 @@ namespace ConcreteAAM {
       }
       else if (isa<BranchInst>(inst)) {
         BranchInst* branchInst = dyn_cast<BranchInst>(inst);
-        Instruction* nextSemanticInst;
+        Instruction* nextSemanticInst = nullptr;
         
         if (opNum == 1) {
           errs() << "Unconditional branch\n";
@@ -740,6 +740,9 @@ namespace ConcreteAAM {
           else {
             nextSemanticInst = getEntry(*elsBlock);
           }
+        }
+        else {
+          assert(false && "Number of operands is greater than 3");
         }
         auto nextSemanticStmt = Stmt::makeStmt(nextSemanticInst);
         auto newState = ConcreteState::makeState(nextSemanticStmt, getFp(), getConf(), getSp());

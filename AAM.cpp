@@ -11,12 +11,14 @@
 #include "llvm/Support/raw_ostream.h"
 
 #include "ConcreteAAM.h"
+#include "AbstractAAM.h"
 #include "Utils.h"
 
 using namespace std;
 using namespace llvm;
 using namespace AAM;
 using namespace ConcreteAAM;
+using namespace AbstractAAM;
 
 namespace {
   struct AAMPass : public ModulePass {
@@ -256,15 +258,50 @@ namespace {
       assert(todo.size() == 2);
     }
     
-    static void test3(Module& M) {
+    static void testConcrete(Module& M) {
       std::shared_ptr<ConcreteState> state = ConcreteState::inject(M, "main");
       ConcreteAAM::run(state);
+    }
+    
+    static void test3(Module& M) {
+      Function* mainFunc = M.getFunction("main");
+      D<AbstractValue, AbstractValueLess> d1;
+  
+      std::shared_ptr<FuncValue> f1 = std::make_shared<FuncValue>(mainFunc);
+      std::shared_ptr<FuncValue> f2 = std::make_shared<FuncValue>(mainFunc);
+      d1.inplaceAdd(f1);
+      d1.inplaceAdd(f2);
+      assert(d1.size() == 1);
+      
+      D<AbstractValue, AbstractValueLess> d2;
+      d2.inplaceAdd(f2);
+      assert(d2.size() == 1);
+      assert(d1 == d2);
+      
+      auto i1 = IntValue::makeInt(3);
+      auto i2 = IntValue::makeInt(3);
+      d1.inplaceAdd(i1);
+      d2.inplaceAdd(i2);
+      assert(d1 == d2);
+      
+      auto i3 = IntValue::makeInt(4);
+      d2.inplaceAdd(i3);
+      assert(d1 != d2);
+      
+      d1.inplaceJoin(d2);
+      assert(d1.size() == 3);
+      
+      d2.inplaceJoin(d1);
+      assert(d2.size() == 3);
+      
+      assert(d1 == d2);
     }
 
     bool runOnModule(Module& M) override {
       ConcreteState::setModule(&M);
       //test1(M);
       //test2(M);
+      //testConcrete(M);
       test3(M);
       return false;
     }
