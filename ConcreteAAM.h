@@ -717,9 +717,7 @@ namespace ConcreteAAM {
         
         if (opNum == 1) {
           errs() << "Unconditional branch\n";
-          Value* target = branchInst->getOperand(0);
-          assert(isa<BasicBlock>(target));
-          BasicBlock* targetBlock = dyn_cast<BasicBlock>(target);
+          BasicBlock* targetBlock = branchInst->getSuccessor(0);
           nextSemanticInst = getEntry(*targetBlock);
         }
         else if (opNum == 3) {
