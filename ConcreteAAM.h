@@ -716,27 +716,24 @@ namespace ConcreteAAM {
         Instruction* nextSemanticInst;
         
         if (opNum == 1) {
-          errs() << "Unconditional brancn\n";
+          errs() << "Unconditional branch\n";
           Value* target = branchInst->getOperand(0);
           assert(isa<BasicBlock>(target));
           BasicBlock* targetBlock = dyn_cast<BasicBlock>(target);
           nextSemanticInst = getEntry(*targetBlock);
         }
         else if (opNum == 3) {
-          errs() << "Conditional brancn\n";
+          errs() << "Conditional branch\n";
           Value* cnd = branchInst->getOperand(0);
-          Value* thn = branchInst->getOperand(1);
-          Value* els = branchInst->getOperand(2);
-          assert(isa<BasicBlock>(thn));
-          assert(isa<BasicBlock>(els));
-          BasicBlock* thnBlock = dyn_cast<BasicBlock>(thn);
-          BasicBlock* elsBlock = dyn_cast<BasicBlock>(els);
+          BasicBlock* thnBlock = branchInst->getSuccessor(0);
+          BasicBlock* elsBlock = branchInst->getSuccessor(1);
           
           auto cndVal = evalAtom(cnd, getFp(), getConf(), *getModule());
           assert(isa<IntValue>(&*cndVal));
           APInt& cndInt = dyn_cast<IntValue>(&*cndVal)->getValue();
           assert(cndInt.getBitWidth() == 1);
           bool b = cndInt.getBoolValue();
+          errs() << "b: " << b << "\n";
           
           if (b) {
             nextSemanticInst = getEntry(*thnBlock);
