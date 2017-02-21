@@ -573,7 +573,14 @@ namespace AAM {
     }
     
     virtual void print() const override {
-      errs() << "IntValue[" << val.getSExtValue() << "]";
+      errs() << "IntValue[";
+      if (val.getBitWidth() == 1) {
+        errs() << val.getBoolValue();
+      }
+      else {
+        errs() << val.getSExtValue();
+      }
+      errs() << "]";
     }
     
   protected:

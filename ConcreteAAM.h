@@ -668,37 +668,40 @@ namespace ConcreteAAM {
         APInt& lhs_v = dyn_cast<IntValue>(&*lhs)->getValue();
         APInt& rhs_v = dyn_cast<IntValue>(&*rhs)->getValue();
         
-        ConstantInt* result;
-        
         CmpInst::Predicate pred = cmpInst->getPredicate();
+        bool res;
         switch (pred) {
           case CmpInst::ICMP_EQ:
-            if (lhs_v == rhs_v) {
-              result = ConstantInt::getTrue(C);
-            }
-            else {
-              result = ConstantInt::getFalse(C);
-            }
+            res = (lhs_v == rhs_v);
             break;
           case CmpInst::ICMP_NE:
-            if (lhs_v != rhs_v) {
-              result = ConstantInt::getTrue(C);
-            }
-            else {
-              result = ConstantInt::getFalse(C);
-            }
+            res = (lhs_v != rhs_v);
             break;
           case CmpInst::ICMP_SGE:
+            res = lhs_v.sge(rhs_v);
             break;
           case CmpInst::ICMP_SGT:
+            res = lhs_v.sgt(rhs_v);
             break;
           case CmpInst::ICMP_SLE:
+            res = lhs_v.sle(rhs_v);
             break;
           case CmpInst::ICMP_SLT:
+            res = lhs_v.slt(rhs_v);
             break;
           default: assert(false && "Predicate not supported");
         }
         
+        ConstantInt* result;
+        if (res) {
+          result = ConstantInt::getTrue(C);
+        }
+        else {
+          result = ConstantInt::getFalse(C);
+        }
+        errs() << "result: ";
+        result->print(errs());
+        errs() << "\n";
         auto val = IntValue::makeInt(result->getValue());
         auto destAddr = addrsOf(cmpInst, getFp(), getConf(), *getModule());
         auto newStore = getConf()->getStore()->copy();
@@ -709,9 +712,23 @@ namespace ConcreteAAM {
       }
       else if (isa<BranchInst>(inst)) {
         BranchInst* branchInst = dyn_cast<BranchInst>(inst);
+        if (opNum == 1) {
+          // Unconditional branch
+          Value* target = branchInst->getOperand(0);
+        }
+        else if (opNum == 3) {
+          // Conditional branch
+          Value* cnd = branchInst->getOperand(0);
+          Value* thn = branchInst->getOperand(1);
+          Value* els = branchInst->getOperand(2);
+          
+          auto cndVal = evalAtom(cnd, getFp(), getConf(), *getModule());
+          assert(isa<IntValue>(&*cndVal));
+          APInt& cndInt = dyn_cast<IntValue>(&*cndVal)->getValue();
+        }
       }
       else if (isa<BitCastInst>(inst)) {
-  
+          
       }
       else if (isa<SExtInst>(inst)) {
         SExtInst* sExtInst = dyn_cast<SExtInst>(inst);
