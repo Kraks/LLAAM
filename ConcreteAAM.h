@@ -699,6 +699,7 @@ namespace ConcreteAAM {
         else {
           result = ConstantInt::getFalse(C);
         }
+        
         errs() << "result: ";
         result->print(errs());
         errs() << "\n";
@@ -712,20 +713,41 @@ namespace ConcreteAAM {
       }
       else if (isa<BranchInst>(inst)) {
         BranchInst* branchInst = dyn_cast<BranchInst>(inst);
+        Instruction* nextSemanticInst;
+        
         if (opNum == 1) {
-          // Unconditional branch
+          errs() << "Unconditional brancn\n";
           Value* target = branchInst->getOperand(0);
+          assert(isa<BasicBlock>(target));
+          BasicBlock* targetBlock = dyn_cast<BasicBlock>(target);
+          nextSemanticInst = getEntry(*targetBlock);
         }
         else if (opNum == 3) {
-          // Conditional branch
+          errs() << "Conditional brancn\n";
           Value* cnd = branchInst->getOperand(0);
           Value* thn = branchInst->getOperand(1);
           Value* els = branchInst->getOperand(2);
+          assert(isa<BasicBlock>(thn));
+          assert(isa<BasicBlock>(els));
+          BasicBlock* thnBlock = dyn_cast<BasicBlock>(thn);
+          BasicBlock* elsBlock = dyn_cast<BasicBlock>(els);
           
           auto cndVal = evalAtom(cnd, getFp(), getConf(), *getModule());
           assert(isa<IntValue>(&*cndVal));
           APInt& cndInt = dyn_cast<IntValue>(&*cndVal)->getValue();
+          assert(cndInt.getBitWidth() == 1);
+          bool b = cndInt.getBoolValue();
+          
+          if (b) {
+            nextSemanticInst = getEntry(*thnBlock);
+          }
+          else {
+            nextSemanticInst = getEntry(*elsBlock);
+          }
         }
+        auto nextSemanticStmt = Stmt::makeStmt(nextSemanticInst);
+        auto newState = ConcreteState::makeState(nextSemanticStmt, getFp(), getConf(), getSp());
+        return newState;
       }
       else if (isa<BitCastInst>(inst)) {
           
