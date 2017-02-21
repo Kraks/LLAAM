@@ -745,7 +745,24 @@ namespace ConcreteAAM {
         return newState;
       }
       else if (isa<BitCastInst>(inst)) {
-          
+        //TODO: For now, BitCastInst is doing nothing.
+        BitCastInst* bitCastInst = dyn_cast<BitCastInst>(inst);
+        Type* destType = bitCastInst->getDestTy();
+        Type* srcType = bitCastInst->getSrcTy();
+        Value* src = bitCastInst->getOperand(0);
+        
+        errs() << "src: ";
+        src->print(errs());
+        errs() << "\n";
+        
+        auto locVal = evalAtom(src, getFp(), getConf(), *getModule());
+        assert(isa<LocationValue>(&*locVal));
+        auto destAddr = BindAddr::makeBindAddr(bitCastInst, getFp());
+        auto newStore = getConf()->getStore()->copy();
+        newStore->inplaceUpdate(destAddr, locVal);
+        auto newConf = ConcreteConf::makeConf(newStore, getConf()->getSucc(), getConf()->getSucc());
+        auto newState = ConcreteState::makeState(nextStmt, getFp(), newConf, getSp());
+        return newState;
       }
       else if (isa<SExtInst>(inst)) {
         SExtInst* sExtInst = dyn_cast<SExtInst>(inst);
