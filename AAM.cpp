@@ -295,6 +295,10 @@ namespace {
       assert(d2.size() == 3);
       
       assert(d1 == d2);
+      
+      assert(d1 == *d1.copy());
+      assert(d2 == *d2.copy());
+      assert(*d1.copy() == *d2.copy());
     }
 
     bool runOnModule(Module& M) override {

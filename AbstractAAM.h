@@ -36,9 +36,15 @@ namespace AbstractAAM {
     typedef std::shared_ptr<T> ValPtr;
     
     D() {}
-    D(std::set<ValPtr> s) : set(s) {}
+    D(std::set<ValPtr, Less> s) : set(s) {}
   
     size_t size() { return set.size(); }
+    
+    DPtr copy() {
+      auto newSet = set;
+      auto newD = std::make_shared<D<T,Less>>(newSet);
+      return newD;
+    }
     
     void inplaceAdd(ValPtr val) {
       set.insert(val);
