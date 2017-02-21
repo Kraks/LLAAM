@@ -201,10 +201,6 @@ namespace ConcreteAAM {
                                    std::shared_ptr<FrameAddr> fp,
                                    std::shared_ptr<ConcreteConf> conf);
   
-  std::shared_ptr<AbstractValue> evalAtom(ConstantInt* i,
-                                          std::shared_ptr<FrameAddr> fp,
-                                          std::shared_ptr<ConcreteConf> conf,
-                                          Module& M);
   std::shared_ptr<AbstractValue> evalAtom(Value* val,
                                           std::shared_ptr<FrameAddr> fp,
                                           std::shared_ptr<ConcreteConf> conf,
@@ -252,6 +248,7 @@ namespace ConcreteAAM {
       //    CallInst @malloc, CallInst @free
       // TODO: implement the real next()
       // TODO: sext, trunc, bitcast
+      LLVMContext& C = getModule()->getContext();
       Instruction* inst = getControl()->getInst();
       Instruction* nextInst = getSyntacticNextInst(inst);
       auto nextStmt = Stmt::makeStmt(nextInst);
@@ -661,6 +658,55 @@ namespace ConcreteAAM {
         auto newState = ConcreteState::makeState(nextStmt, this->getFp(), newConf, this->getSp());
         return newState;
       }
+      else if (isa<ICmpInst>(inst)) {
+        ICmpInst* cmpInst = dyn_cast<ICmpInst>(inst);
+        auto lhs = evalAtom(cmpInst->getOperand(0), getFp(), getConf(), *getModule());
+        assert(isa<IntValue>(*lhs));
+        auto rhs = evalAtom(cmpInst->getOperand(1), getFp(), getConf(), *getModule());
+        assert(isa<IntValue>(*rhs));
+        
+        APInt& lhs_v = dyn_cast<IntValue>(&*lhs)->getValue();
+        APInt& rhs_v = dyn_cast<IntValue>(&*rhs)->getValue();
+        
+        ConstantInt* result;
+        
+        CmpInst::Predicate pred = cmpInst->getPredicate();
+        switch (pred) {
+          case CmpInst::ICMP_EQ:
+            if (lhs_v == rhs_v) {
+              result = ConstantInt::getTrue(C);
+            }
+            else {
+              result = ConstantInt::getFalse(C);
+            }
+            break;
+          case CmpInst::ICMP_NE:
+            if (lhs_v != rhs_v) {
+              result = ConstantInt::getTrue(C);
+            }
+            else {
+              result = ConstantInt::getFalse(C);
+            }
+            break;
+          case CmpInst::ICMP_SGE:
+            break;
+          case CmpInst::ICMP_SGT:
+            break;
+          case CmpInst::ICMP_SLE:
+            break;
+          case CmpInst::ICMP_SLT:
+            break;
+          default: assert(false && "Predicate not supported");
+        }
+        
+        auto val = IntValue::makeInt(result->getValue());
+        auto destAddr = addrsOf(cmpInst, getFp(), getConf(), *getModule());
+        auto newStore = getConf()->getStore()->copy();
+        newStore->inplaceUpdate(destAddr, val);
+        auto newConf = ConcreteConf::makeConf(newStore, getConf()->getSucc(), getConf()->getPred());
+        auto newState = ConcreteState::makeState(nextStmt, getFp(), newConf, getSp());
+        return newState;
+      }
       else if (isa<BranchInst>(inst)) {
         BranchInst* branchInst = dyn_cast<BranchInst>(inst);
       }
@@ -670,14 +716,53 @@ namespace ConcreteAAM {
       else if (isa<SExtInst>(inst)) {
         SExtInst* sExtInst = dyn_cast<SExtInst>(inst);
         Value* op0 = sExtInst->getOperand(0);
-        Value* op1 = sExtInst->getOperand(1);
+        
+        Type* destType = sExtInst->getDestTy();
+        auto val = evalAtom(op0, getFp(), getConf(), *getModule());
+        assert(isa<IntValue>(&*val));
+        APInt v = dyn_cast<IntValue>(&*val)->getValue().sext(destType->getIntegerBitWidth());
+        auto newVal = IntValue::makeInt(v);
   
+        auto destAddr = addrsOf(sExtInst, getFp(), getConf(), *getModule());
+        auto newStore = getConf()->getStore()->copy();
+        newStore->inplaceUpdate(destAddr, newVal);
+        auto newConf = ConcreteConf::makeConf(newStore, getConf()->getSucc(), getConf()->getPred());
+        auto newState = ConcreteState::makeState(nextStmt, getFp(), newConf, getSp());
+        return newState;
+      }
+      else if (isa<ZExtInst>(inst)) {
+        ZExtInst* zExtInst = dyn_cast<ZExtInst>(inst);
+        Value* op0 = zExtInst->getOperand(0);
+        
+        Type* destType = zExtInst->getDestTy();
+        auto val = evalAtom(op0, getFp(), getConf(), *getModule());
+        assert(isa<IntValue>(&*val));
+        APInt v = dyn_cast<IntValue>(&*val)->getValue().zext(destType->getIntegerBitWidth());
+        auto newVal = IntValue::makeInt(v);
+        
+        auto destAddr = addrsOf(zExtInst, getFp(), getConf(), *getModule());
+        auto newStore = getConf()->getStore()->copy();
+        newStore->inplaceUpdate(destAddr, newVal);
+        auto newConf = ConcreteConf::makeConf(newStore, getConf()->getSucc(), getConf()->getPred());
+        auto newState = ConcreteState::makeState(nextStmt, getFp(), newConf, getSp());
+        return newState;
       }
       else if (isa<TruncInst>(inst)) {
         TruncInst* truncInst = dyn_cast<TruncInst>(inst);
         Value* op0 = truncInst->getOperand(0);
-        Value* op1 = truncInst->getOperand(1);
-  
+        Type* destType = truncInst->getDestTy();
+        
+        auto val = evalAtom(op0, getFp(), getConf(), *getModule());
+        assert(isa<IntValue>(&*val));
+        APInt v = dyn_cast<IntValue>(&*val)->getValue().trunc(destType->getIntegerBitWidth());
+        auto newVal = IntValue::makeInt(v);
+        
+        auto destAddr = addrsOf(truncInst, getFp(), getConf(), *getModule());
+        auto newStore = getConf()->getStore()->copy();
+        newStore->inplaceUpdate(destAddr, newVal);
+        auto newConf = ConcreteConf::makeConf(newStore, getConf()->getSucc(), getConf()->getPred());
+        auto newState = ConcreteState::makeState(nextStmt, getFp(), newConf, getSp());
+        return newState;
       }
       else {
         
