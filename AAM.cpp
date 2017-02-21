@@ -305,8 +305,8 @@ namespace {
       ConcreteState::setModule(&M);
       //test1(M);
       //test2(M);
-      //testConcrete(M);
-      test3(M);
+      //test3(M);
+      testConcrete(M);
       return false;
     }
 

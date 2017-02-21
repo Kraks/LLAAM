@@ -24,7 +24,6 @@ namespace AbstractAAM {
     std::set<AbstractValue> s;
 
   };
-   
   */
   
   class Measure {};
@@ -76,11 +75,11 @@ namespace AbstractAAM {
       return !(*this == that);
     }
     
-    //TODO: join, eq
   private:
     std::set<ValPtr, Less> set;
   };
    
+  typedef D<AbstractValue, AbstractValueLess> AbsD;
 }
 
 #endif //LLVM_ABSTRACTAAM_H

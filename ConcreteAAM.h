@@ -615,7 +615,7 @@ namespace ConcreteAAM {
             ty = ty->getArrayElementType();
           }
           else if (ty->isStructTy()) {
-            assert(offset_v > 0);
+            assert(offset_v >= 0);
             ty = ty->getStructElementType(offset_v);
           }
         }
