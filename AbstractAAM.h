@@ -143,6 +143,34 @@ namespace AbstractAAM {
       return c;
     }
   };
+  
+  class AbsState : public State<Stmt, FrameAddr, AbsConf, StackAddr> {
+  private:
+    static Module* module;
+    static unsigned long long id;
+    unsigned long long myId;
+    
+  public:
+    static void setModule(Module* M) {
+      module = M;
+    }
+    static Module* getModule() {
+      assert(module != nullptr);
+      return module;
+    }
+    
+    typedef std::shared_ptr<AbsState> StatePtrType;
+  
+    AbsState(CPtrType c, EPtrType e, SPtrType s, KPtrType k) :
+    State(c, e, s, k) {
+      myId = id++;
+    };
+  
+    StatePtrType copy() {
+      auto s = AbsState::makeState(this->getControl(), this->getFp(), this->getConf(), this->getSp());
+      return s;
+    }
+  };
 }
 
 #endif //LLVM_ABSTRACTAAM_H
