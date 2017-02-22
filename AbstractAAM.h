@@ -170,6 +170,11 @@ namespace AbstractAAM {
       auto s = AbsState::makeState(this->getControl(), this->getFp(), this->getConf(), this->getSp());
       return s;
     }
+    
+    static makeState(CPtrType c, EPtrType e, SPtrType s, KPtrType k) {
+      auto s = std::make_shared<AbsState>(ce, e, s, k);
+      return s;
+    }
   };
 }
 
