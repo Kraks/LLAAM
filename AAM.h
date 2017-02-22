@@ -43,7 +43,6 @@ namespace AAM {
   typedef std::string strvar;
   typedef Value* var;
   
-  enum AbstractNat { Zero, One, Inf };
 
   /**
    * Location = HeapAddr

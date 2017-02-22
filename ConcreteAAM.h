@@ -456,6 +456,7 @@ namespace ConcreteAAM {
         return newState;
       }
       else if (isa<StoreInst>(inst)) {
+        //TODO: check the size, note that there is a extra cell when allocating memory
         StoreInst* storeInst = dyn_cast<StoreInst>(inst);
         Value* op0 = storeInst->getOperand(0);
         Type* op0_ty = op0->getType();

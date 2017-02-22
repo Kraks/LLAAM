@@ -6,8 +6,10 @@
 #ifndef LLVM_ABSTRACTAAM_H
 #define LLVM_ABSTRACTAAM_H
 
+
 namespace AbstractAAM {
   using namespace AAM;
+  
   
   /*
   class ZeroCFAHeapAddr : public HeapAddr {
@@ -25,8 +27,6 @@ namespace AbstractAAM {
 
   };
   */
-  
-  class Measure {};
   
   template<class T, class Less>
   class D {
@@ -63,6 +63,14 @@ namespace AbstractAAM {
       }
     }
     
+    size_t hashValue() {
+      size_t seed = 0;
+      for (auto& e : set) {
+        seed = hash_combine(seed, e->hashValue());
+      }
+      return seed;
+    }
+    
     inline bool operator==(D& that) {
       auto pred = [] (decltype(*set.begin()) a, decltype(*set.begin()) b) {
         return *a == *b;
@@ -78,8 +86,63 @@ namespace AbstractAAM {
   private:
     std::set<ValPtr, Less> set;
   };
-   
+  
+  
+  class AbstractNat {
+  public:
+    enum AbstractNatEnum { Zero, One, Inf };
+  
+    AbstractNat(AbstractNatEnum e) : e(e) {};
+    
+    static std::shared_ptr<AbstractNat> getZeroInstance() {
+      static auto z = std::make_shared<AbstractNat>(Zero);
+      return z;
+    }
+    
+    static std::shared_ptr<AbstractNat> getOneInstance() {
+      static auto o = std::make_shared<AbstractNat>(One);
+      return o;
+    }
+    
+    static std::shared_ptr<AbstractNat> getInfInstance() {
+      static auto i = std::make_shared<AbstractNat>(Inf);
+      return i;
+    }
+    
+    size_t hashValue() {
+      size_t seed = 0;
+      seed = hash_value(e);
+      return seed;
+    }
+    
+  private:
+    AbstractNatEnum e;
+  };
+  
   typedef D<AbstractValue, AbstractValueLess> AbsD;
+  
+  typedef D<Location, LocationLess> AbsLoc;
+  
+  typedef Store<Location, AbsD, LocationLess> AbsStore;
+  
+  typedef Store<Location, AbsLoc, LocationLess> AbsSucc;
+  
+  typedef Store<Location, AbsLoc, LocationLess> AbsPred;
+  
+  typedef Store<Location, AbstractNat, LocationLess> AbsMeasure;
+  
+  class AbsConf : public Conf<AbsStore, AbsSucc, AbsPred, AbsMeasure> {
+  public:
+    typedef std::shared_ptr<AbsConf> AbsConfPtr;
+    
+    AbsConf(StorePtrType store, SuccPtrType succ, PredPtrType pred, MeasurePtrType m) :
+      Conf(store, succ, pred, m) {}
+    
+    static AbsConfPtr makeAbsConf(StorePtrType store, SuccPtrType succ, PredPtrType pred, MeasurePtrType m) {
+      auto c = std::make_shared<AbsConf>(store, succ, pred, m);
+      return c;
+    }
+  };
 }
 
 #endif //LLVM_ABSTRACTAAM_H
