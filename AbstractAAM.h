@@ -171,9 +171,9 @@ namespace AbstractAAM {
       return s;
     }
     
-    static makeState(CPtrType c, EPtrType e, SPtrType s, KPtrType k) {
-      auto s = std::make_shared<AbsState>(ce, e, s, k);
-      return s;
+    static StatePtrType makeState(CPtrType c, EPtrType e, SPtrType s, KPtrType k) {
+      auto state = std::make_shared<AbsState>(c, e, s, k);
+      return state;
     }
   };
 }
