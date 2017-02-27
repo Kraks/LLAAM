@@ -64,8 +64,8 @@ namespace AbstractAAM {
   
     virtual size_t hashValue() const override {
       size_t seed = 0;
-      seed = hash_combine(seed, val);
-      seed = hash_combine(seed, offset);
+      seed = hash_combine(seed, hash_value(val));
+      seed = hash_combine(seed, hash_value(offset));
       seed = hash_combine(seed, hash_value("ZeroCFAStackAddr"));
       return seed;
     }
@@ -92,7 +92,23 @@ namespace AbstractAAM {
   public:
     typedef std::shared_ptr<ZeroCFAHeapAddr> ZeroCFAHeapAddrPtrType;
     
-    ZeroCFAHeapAddr() : HeapAddr(KZeroCFAHeapAddr) {}
+    ZeroCFAHeapAddr(Instruction* inst, size_t offset) : inst(inst), offset(offset), HeapAddr(KZeroCFAHeapAddr) {
+      assert(isa<CallInst>(inst));
+    }
+    
+    static ZeroCFAHeapAddrPtrType make(Instruction* inst, size_t offset) {
+      auto a = std::make_shared<ZeroCFAHeapAddr>(inst, offset);
+      return a;
+    }
+    
+    static std::shared_ptr<std::vector<ZeroCFAHeapAddrPtrType>> allocate(Instruction* inst, size_t n) {
+      std::shared_ptr<std::vector<ZeroCFAHeapAddrPtrType>> v = std::make_shared<std::vector<ZeroCFAHeapAddrPtrType>>();
+      for (size_t i = 0; i < n; i++) {
+        auto a = make(inst, i);
+        v->push_back(a);
+      }
+      return v;
+    }
     
     static bool classof(const Location* loc) {
       return loc->getKind() == KZeroCFAHeapAddr;
@@ -102,23 +118,27 @@ namespace AbstractAAM {
       if (!isa<ZeroCFAHeapAddr>(&that))
         return false;
       auto* newThat = dyn_cast<ZeroCFAHeapAddr>(&that);
-      //TODO
-      return false;
+      return this->inst == newThat->inst &&
+             this->offset == newThat->offset;
     }
     
     virtual size_t hashValue() const override {
       size_t seed = 0;
-      //TODO
+      seed = hash_combine(seed, hash_value(inst));
+      seed = hash_combine(seed, hash_value(offset));
       seed = hash_combine(seed, hash_value("ZeroCFAHeapAddr"));
       return seed;
     }
   
     virtual void print() const override {
-      errs() << "0CFAHeapAddr[" << "TODO" << "]";
+      errs() << "0CFAHeapAddr[";
+      inst->print(errs());
+      errs() << "," << offset << "]";
     }
 
   private:
-    //TODO
+    Instruction* inst;
+    size_t offset;
   };
   
   template<class T, class Less>
