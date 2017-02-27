@@ -12,7 +12,7 @@
  * StoreInst, AllocaInst, LoadInst,
  * ReturnInst, CallInst, CallInst @malloc, CallInst @free,
  * ICmpInst, SExtInst, ZExtInst, BitCastInst,
- * BranchInst, GetElementPtrInst, TruncInst
+ * BranchInst, GetElementPtrInst, TruncInst, PHINode
  */
 
 namespace ConcreteAAM {

@@ -15,28 +15,57 @@ namespace AbstractAAM {
   public:
     typedef std::shared_ptr<ZeroCFAStackAddr> ZeroCFAStackAddrPtrType;
     
-    ZeroCFAStackAddr() : StackAddr(KZeroCFAStackAddr) {}
+    ZeroCFAStackAddr(Value* val) : val(val), offset(0), StackAddr(KZeroCFAStackAddr) {
+      assert(isa<Function>(val));
+    }
+    
+    ZeroCFAStackAddr(Value* val, size_t offset) : val(val), offset(offset), StackAddr(KZeroCFAStackAddr) {
+      assert(isa<AllocaInst>(val));
+    }
     
     static bool classof(const Location* loc) {
       return loc->getKind() == KZeroCFAStackAddr;
     }
+  
+    static ZeroCFAStackAddrPtrType make(Function* f) {
+      auto s = std::make_shared<ZeroCFAStackAddr>(f);
+      return s;
+    }
+    
+    static ZeroCFAStackAddrPtrType make(AllocaInst* inst, size_t offset) {
+      auto s = std::make_shared<ZeroCFAStackAddr>(inst, offset);
+      return s;
+    }
+    
+    static std::shared_ptr<std::vector<ZeroCFAStackAddrPtrType>> allocate(AllocaInst* inst, size_t n) {
+      std::shared_ptr<std::vector<ZeroCFAStackAddrPtrType>> v = std::make_shared<std::vector<ZeroCFAStackAddrPtrType>>();
+      for (size_t i = 0; i < n; i++) {
+        ZeroCFAStackAddrPtrType a = make(inst, i);
+        v->push_back(a);
+      }
+      return v;
+    }
     
     virtual bool isInitFp() override {
-      //TODO
-      return true;
+      // TODO: work on arbitrary function as entrance.
+      if (!isa<Function>(val))
+        return false;
+      auto* f = dyn_cast<Function>(val);
+      return f->getName() == "main";
     }
     
     virtual bool equalTo(const Location& that) const override {
       if (!isa<ZeroCFAStackAddr>(&that))
         return false;
       auto* newThat = dyn_cast<ZeroCFAStackAddr>(&that);
-      //TODO
-      return false;
+      return this->val == newThat->val &&
+             this->offset == newThat->offset;
     }
   
     virtual size_t hashValue() const override {
       size_t seed = 0;
-      //TODO
+      seed = hash_combine(seed, val);
+      seed = hash_combine(seed, offset);
       seed = hash_combine(seed, hash_value("ZeroCFAStackAddr"));
       return seed;
     }
@@ -46,7 +75,8 @@ namespace AbstractAAM {
     }
 
   private:
-    //TODO
+    Value* val;
+    size_t offset;
   };
   
   typedef ZeroCFAStackAddr ZeroCFAFrameAddr;
