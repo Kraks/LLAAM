@@ -6,11 +6,10 @@
 #ifndef LLVM_ABSTRACTAAM_H
 #define LLVM_ABSTRACTAAM_H
 
+// TODO: addrsOf, evalAtom
 
 namespace AbstractAAM {
   using namespace AAM;
-  
-  
   /*
   class ZeroCFAHeapAddr : public HeapAddr {
     //TODO
@@ -170,18 +169,18 @@ namespace AbstractAAM {
     }
   };
   
-  template<typename T> struct StateSetHasher;
-  template<typename T> struct StateSetEqual;
+  template<typename T> struct PSetHasher;
+  template<typename T> struct PSetEqual;
   
   template<typename T>
-  class StateSet {
+  class PSet {
   public:
     typedef std::shared_ptr<T> EleType;
     
-    StateSet() {}
+    PSet() {}
     
-    static std::shared_ptr<StateSet<T>> getMtSet() {
-      auto s = std::make_shared<StateSet<T>>();
+    static std::shared_ptr<PSet<T>> getMtSet() {
+      auto s = std::make_shared<PSet<T>>();
       return s;
     }
     
@@ -214,18 +213,18 @@ namespace AbstractAAM {
     size_t size() { return set.size(); }
   
   private:
-    std::unordered_set<EleType, StateSetHasher<T>, StateSetEqual<T>> set;
+    std::unordered_set<EleType, PSetHasher<T>, PSetEqual<T>> set;
   };
   
   template<typename T>
-  struct StateSetHasher {
+  struct PSetHasher {
     std::size_t operator()(const std::shared_ptr<T>& s) const {
       return s->hashValue();
     }
   };
   
   template<typename T>
-  struct StateSetEqual {
+  struct PSetEqual {
     bool operator()(const std::shared_ptr<T>& a, const std::shared_ptr<T>& b) const {
       return *a == *b;
     }
@@ -233,7 +232,8 @@ namespace AbstractAAM {
   
   class AbsState;
   
-  typedef StateSet<AbsState> AbsStateSet;
+  typedef std::shared_ptr<AbsState> StatePtrType;
+  typedef PSet<AbsState> StateSet;
   
   class AbsState : public State<Stmt, FrameAddr, AbsConf, StackAddr> {
   private:
@@ -242,7 +242,7 @@ namespace AbstractAAM {
     unsigned long long myId;
   
   public:
-    typedef std::shared_ptr<AbsStateSet> AbsStateSetPtrType;
+    typedef std::shared_ptr<StateSet> StateSetPtrType;
     
     static void setModule(Module* M) {
       module = M;
@@ -252,12 +252,69 @@ namespace AbstractAAM {
       return module;
     }
     
-    AbsStateSetPtrType next() {
-      auto s = AbsStateSet::getMtSet();
-      return s;
+    StateSetPtrType next() {
+      auto states = StateSet::getMtSet();
+      LLVMContext& C = getModule()->getContext();
+      Instruction* inst = getControl()->getInst();
+      Instruction* nextInst = getSyntacticNextInst(inst);
+      auto nextStmt = Stmt::makeStmt(nextInst);
+  
+      size_t opNum = inst->getNumOperands();
+      errs() << "op num: " << opNum << "\n";
+      
+      if (isa<ReturnInst>(inst)) {
+        
+      }
+      else if (isa<CallInst>(inst)) {
+        
+      }
+      else if (isa<LoadInst>(inst)) {
+      
+      }
+      else if (isa<StoreInst>(inst)) {
+      
+      }
+      else if (isa<AllocaInst>(inst)) {
+      
+      }
+      else if (isa<GetElementPtrInst>(inst)) {
+        
+      }
+      else if (Instruction::Add == inst->getOpcode() ||
+               Instruction::Sub == inst->getOpcode() ||
+               Instruction::Mul == inst->getOpcode()) {
+        
+      }
+      else if (isa<ICmpInst>(inst)) {
+      
+      }
+      else if (isa<BranchInst>(inst)) {
+        
+      }
+      else if (isa<BitCastInst>(inst)) {
+        
+      }
+      else if (isa<SExtInst>(inst)) {
+        
+      }
+      else if (isa<ZExtInst>(inst)) {
+        
+      }
+      else if (isa<TruncInst>(inst)) {
+        
+      }
+      else {
+        assert(false && "Unsupported instruction");
+      }
+      
+      return states;
     }
     
-    typedef std::shared_ptr<AbsState> StatePtrType;
+    void print() {
+      errs() << "state[";
+      getControl()->getInst()->print(errs());
+      errs() << "][" << myId << "]";
+    }
     
     AbsState(CPtrType c, EPtrType e, SPtrType s, KPtrType k) :
       State(c, e, s, k) {

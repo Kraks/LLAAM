@@ -248,6 +248,12 @@ namespace ConcreteAAM {
       return s;
     }
     
+    void print() {
+      errs() << "state[";
+      getControl()->getInst()->print(errs());
+      errs() << "][" << myId << "]";
+    }
+    
     StatePtrType next() {
       LLVMContext& C = getModule()->getContext();
       Instruction* inst = getControl()->getInst();

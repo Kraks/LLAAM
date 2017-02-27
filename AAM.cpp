@@ -223,7 +223,7 @@ namespace {
         });
       }
   
-      StateSet<ConcreteState> todo;
+      PSet<ConcreteState> todo;
       std::shared_ptr<ConcreteState> state = ConcreteState::inject(M, "main");
       todo.inplaceInsert(state);
       assert(todo.contains(state));
