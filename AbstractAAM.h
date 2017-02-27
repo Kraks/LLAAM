@@ -240,6 +240,21 @@ namespace AbstractAAM {
       return this->e == that.e;
     }
     
+    static AbstractNatEnum plus(AbstractNatEnum a, AbstractNatEnum b) {
+      if (a == Zero) {
+        return b;
+      }
+      if (a == One) {
+        if (b == Zero) {
+          return One;
+        }
+        return Inf;
+      }
+      if (a == Inf) {
+        return Inf;
+      }
+    }
+    
     size_t hashValue() {
       size_t seed = 0;
       seed = hash_value(e);
