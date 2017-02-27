@@ -848,62 +848,6 @@ namespace AAM {
     SPtrType sPtr;
     KPtrType kPtr;
   };
-  
-  template<typename T> struct StateSetHasher;
-  template<typename T> struct StateSetEqual;
-  
-  template<typename T>
-  class StateSet {
-  public:
-    typedef std::shared_ptr<T> EleType;
-    
-    StateSet() {}
-    
-    void inplaceInsert(EleType state) {
-      set.insert(state);
-    }
-    
-    void inplaceRemove(EleType state) {
-      set.erase(state);
-    }
-    
-    EleType inplacePop() {
-      auto it = set.begin();
-      auto head = *it;
-      inplaceRemove(*it);
-      return head;
-    }
-    
-    bool contains(EleType state) {
-      auto it = set.find(state);
-      return it != set.end();
-    }
-    
-    void dump() {
-      for (const auto& elem: set) {
-        errs() << elem->hashValue() << "\n";
-      }
-    }
-    
-    size_t size() { return set.size(); }
-    
-  private:
-    std::unordered_set<EleType, StateSetHasher<T>, StateSetEqual<T>> set;
-  };
-  
-  template<typename T>
-  struct StateSetHasher {
-    std::size_t operator()(const std::shared_ptr<T>& s) const {
-      return s->hashValue();
-    }
-  };
-  
-  template<typename T>
-  struct StateSetEqual {
-    bool operator()(const std::shared_ptr<T>& a, const std::shared_ptr<T>& b) const {
-      return *a == *b;
-    }
-  };
 }
 
 #endif //LLVM_AAM_H

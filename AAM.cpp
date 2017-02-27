@@ -265,7 +265,7 @@ namespace {
     
     static void test3(Module& M) {
       Function* mainFunc = M.getFunction("main");
-      D<AbstractValue, AbstractValueLess> d1;
+      AbsD d1;
   
       std::shared_ptr<FuncValue> f1 = std::make_shared<FuncValue>(mainFunc);
       std::shared_ptr<FuncValue> f2 = std::make_shared<FuncValue>(mainFunc);
@@ -299,14 +299,22 @@ namespace {
       assert(d1 == *d1.copy());
       assert(d2 == *d2.copy());
       assert(*d1.copy() == *d2.copy());
+      
+      auto d3 = AbsD::makeMtD();
+      d3->inplaceAdd(f1);
+      d3->inplaceAdd(i2);
+      d3->inplaceAdd(i3);
+      d3->print();
+      
     }
 
     bool runOnModule(Module& M) override {
       ConcreteState::setModule(&M);
+      AbsState::setModule(&M);
       //test1(M);
       //test2(M);
-      //test3(M);
-      testConcrete(M);
+      test3(M);
+      //testConcrete(M);
       return false;
     }
 

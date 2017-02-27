@@ -36,4 +36,16 @@ void forEachInst(F& f, Lam lam) {
   }
 }
 
+template <typename Iter>
+Iter getNext(Iter iter)
+{
+  return ++iter;
+}
+
+template <typename Iter, typename Cont>
+bool isLast(Iter iter, const Cont& cont)
+{
+  return (iter != cont.end()) && (getNext(iter) == cont.end());
+}
+
 #endif //LLVM_UTILS_H
