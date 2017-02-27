@@ -71,7 +71,14 @@ namespace AbstractAAM {
     }
   
     virtual void print() const override {
-      errs() << "0CFAStackAddr[" << "TODO" << "]";
+      errs() << "0CFAStackAddr[";
+      if (isa<Function>(val)) {
+        errs() << dyn_cast<Function>(val)->getName();
+      }
+      else {
+        val->print(errs());
+      }
+      errs() << "," << offset << "]";
     }
 
   private:
