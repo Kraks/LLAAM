@@ -313,8 +313,8 @@ namespace {
       AbsState::setModule(&M);
       //test1(M);
       //test2(M);
-      test3(M);
-      //testConcrete(M);
+      //test3(M);
+      testConcrete(M);
       return false;
     }
 

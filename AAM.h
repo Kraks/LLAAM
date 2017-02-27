@@ -171,6 +171,8 @@ namespace AAM {
       return k >= KStackAddr && k <= KStackAddrEnd;
     }
     
+    virtual bool isInitFp() = 0;
+    
     virtual size_t hashValue() const override {
       assert(false && "should not call StackAddr::hashValue");
       return hash_value("StackAddr");
@@ -776,15 +778,20 @@ namespace AAM {
   
   class Stmt {
   private:
+    Instruction* prev;
     Instruction* inst;
     
   public:
-    Stmt(Instruction* inst): inst(inst) {}
+    Stmt(Instruction* inst): inst(inst), prev(nullptr) {}
+    Stmt(Instruction* inst, Instruction* prev) : inst(inst), prev(prev) {}
     
     Instruction* getInst() { return inst; }
     
+    Instruction* getPrev() { return prev; }
+    
     inline bool operator==(Stmt& that) {
-      return this->inst == that.inst;
+      return this->inst == that.inst &&
+             this->prev == that.prev;
     }
     
     inline bool operator!=(Stmt& that) {
@@ -796,9 +803,16 @@ namespace AAM {
       return s;
     }
     
+    static std::shared_ptr<Stmt> makeStmt(Instruction* inst, Instruction* prev) {
+      std::shared_ptr<Stmt> s = std::make_shared<Stmt>(inst, prev);
+      return s;
+    }
+    
     virtual size_t hashValue() {
-      //errs() << "Stmt::hashValue\n";
-      return hash_value(inst);
+      size_t seed = 0;
+      seed = hash_combine(seed, hash_value(inst));
+      seed = hash_combine(seed, hash_value(prev));
+      return seed;
     }
   };
   

@@ -21,6 +21,11 @@ namespace AbstractAAM {
       return loc->getKind() == KZeroCFAStackAddr;
     }
     
+    virtual bool isInitFp() override {
+      //TODO
+      return true;
+    }
+    
     virtual bool equalTo(const Location& that) const override {
       if (!isa<ZeroCFAStackAddr>(&that))
         return false;
@@ -173,6 +178,10 @@ namespace AbstractAAM {
       static auto i = std::make_shared<AbstractNat>(Inf);
       return i;
     }
+  
+    inline bool operator==(AbstractNat& that) {
+      return this->e == that.e;
+    }
     
     size_t hashValue() {
       size_t seed = 0;
@@ -284,7 +293,6 @@ namespace AbstractAAM {
   
   class AbsState;
   
-  typedef std::shared_ptr<AbsState> StatePtrType;
   typedef PSet<AbsState> StateSet;
   
   class AbsState : public State<Stmt, FrameAddr, AbsConf, StackAddr> {
@@ -294,6 +302,7 @@ namespace AbstractAAM {
     unsigned long long myId;
   
   public:
+    typedef std::shared_ptr<AbsState> StatePtrType;
     typedef std::shared_ptr<StateSet> StateSetPtrType;
     
     static void setModule(Module* M) {
@@ -315,9 +324,26 @@ namespace AbstractAAM {
       errs() << "op num: " << opNum << "\n";
       
       if (isa<ReturnInst>(inst)) {
-        
+        ReturnInst* returnInst = dyn_cast<ReturnInst>(inst);
+        auto fp = this->getFp();
+        if (fp->isInitFp()) {
+          // return in main method
+          if (opNum > 0) {
+            
+          }
+          else {
+            
+          }
+          states->inplaceInsert(this->copy());
+        }
+        else {
+            
+        }
       }
       else if (isa<CallInst>(inst)) {
+        CallInst* callInst = dyn_cast<CallInst>(inst);
+        Value* f = callInst->getCalledFunction();
+        Function* function = nullptr;
         
       }
       else if (isa<LoadInst>(inst)) {

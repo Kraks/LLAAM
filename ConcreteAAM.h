@@ -85,6 +85,10 @@ namespace ConcreteAAM {
       myId = id++;
     }
     
+    virtual bool isInitFp() override {
+      return *this == *ConcreteStackAddr::initFp();
+    }
+    
     static bool classof(const Location* loc) {
       return loc->getKind() == KConcreteStackAddr;
     }
@@ -270,7 +274,7 @@ namespace ConcreteAAM {
         auto fp = this->getFp();
         
         //errs() << "op nums: " << opNum << "\n";
-        if (*fp == *ConcreteStackAddr::initFp()) {
+        if (fp->isInitFp()) {
           if (opNum > 0) {
             auto ret = returnInst->getOperand(0);
             auto rval = evalAtom(ret, this->getFp(), this->getConf(), *ConcreteState::getModule());
@@ -751,7 +755,7 @@ namespace ConcreteAAM {
         else {
           assert(false && "Number of operands is greater than 3");
         }
-        auto nextSemanticStmt = Stmt::makeStmt(nextSemanticInst);
+        auto nextSemanticStmt = Stmt::makeStmt(nextSemanticInst, branchInst);
         auto newState = ConcreteState::makeState(nextSemanticStmt, getFp(), getConf(), getSp());
         return newState;
       }
@@ -822,6 +826,20 @@ namespace ConcreteAAM {
         auto destAddr = addrsOf(truncInst, getFp(), getConf(), *getModule());
         auto newStore = getConf()->getStore()->copy();
         newStore->inplaceUpdate(destAddr, newVal);
+        auto newConf = ConcreteConf::makeConf(newStore, getConf()->getSucc(), getConf()->getPred());
+        auto newState = ConcreteState::makeState(nextStmt, getFp(), newConf, getSp());
+        return newState;
+      }
+      else if (isa<PHINode>(inst)) {
+        PHINode* phiNode = dyn_cast<PHINode>(inst);
+        Instruction* prev = getControl()->getPrev();
+        assert(prev != nullptr);
+        BasicBlock* fromBlock = prev->getParent();
+        Value* incomingValue = phiNode->getIncomingValueForBlock(fromBlock);
+        auto val = evalAtom(incomingValue, getFp(), getConf(), *getModule());
+        auto destAddr = addrsOf(phiNode, getFp(), getConf(), *getModule());
+        auto newStore = getConf()->getStore()->copy();
+        newStore->inplaceUpdate(destAddr, val);
         auto newConf = ConcreteConf::makeConf(newStore, getConf()->getSucc(), getConf()->getPred());
         auto newState = ConcreteState::makeState(nextStmt, getFp(), newConf, getSp());
         return newState;
