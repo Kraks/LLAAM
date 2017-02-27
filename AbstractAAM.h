@@ -10,22 +10,74 @@
 
 namespace AbstractAAM {
   using namespace AAM;
-  /*
+  
+  class ZeroCFAStackAddr : public StackAddr {
+  public:
+    typedef std::shared_ptr<ZeroCFAStackAddr> ZeroCFAStackAddrPtrType;
+    
+    ZeroCFAStackAddr() : StackAddr(KZeroCFAStackAddr) {}
+    
+    static bool classof(const Location* loc) {
+      return loc->getKind() == KZeroCFAStackAddr;
+    }
+    
+    virtual bool equalTo(const Location& that) const override {
+      if (!isa<ZeroCFAStackAddr>(&that))
+        return false;
+      auto* newThat = dyn_cast<ZeroCFAStackAddr>(&that);
+      //TODO
+      return false;
+    }
+  
+    virtual size_t hashValue() const override {
+      size_t seed = 0;
+      //TODO
+      seed = hash_combine(seed, hash_value("ZeroCFAStackAddr"));
+      return seed;
+    }
+  
+    virtual void print() const override {
+      errs() << "0CFAStackAddr[" << "TODO" << "]";
+    }
+
+  private:
+    //TODO
+  };
+  
+  typedef ZeroCFAStackAddr ZeroCFAFrameAddr;
+  
   class ZeroCFAHeapAddr : public HeapAddr {
+  public:
+    typedef std::shared_ptr<ZeroCFAHeapAddr> ZeroCFAHeapAddrPtrType;
+    
+    ZeroCFAHeapAddr() : HeapAddr(KZeroCFAHeapAddr) {}
+    
+    static bool classof(const Location* loc) {
+      return loc->getKind() == KZeroCFAHeapAddr;
+    }
+  
+    virtual bool equalTo(const Location& that) const override {
+      if (!isa<ZeroCFAHeapAddr>(&that))
+        return false;
+      auto* newThat = dyn_cast<ZeroCFAHeapAddr>(&that);
+      //TODO
+      return false;
+    }
+    
+    virtual size_t hashValue() const override {
+      size_t seed = 0;
+      //TODO
+      seed = hash_combine(seed, hash_value("ZeroCFAHeapAddr"));
+      return seed;
+    }
+  
+    virtual void print() const override {
+      errs() << "0CFAHeapAddr[" << "TODO" << "]";
+    }
+
+  private:
     //TODO
   };
-
-  class ZeroCFAStackPtr : public StackPtr {
-    //TODO
-  };
-
-  typedef ZeroCFAStackPtr ZeroCFAFramePtr;
-
-  class AbstractStore : public Store {
-    std::set<AbstractValue> s;
-
-  };
-  */
   
   template<class T, class Less>
   class D {
