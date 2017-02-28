@@ -13,6 +13,8 @@ namespace AbstractAAM {
   
   class ZeroCFAStackAddr : public StackAddr {
   public:
+    static Function* initFunc;
+    
     typedef std::shared_ptr<ZeroCFAStackAddr> ZeroCFAStackAddrPtrType;
     
     ZeroCFAStackAddr(Value* val) : val(val), offset(0), StackAddr(KZeroCFAStackAddr) {
@@ -21,6 +23,16 @@ namespace AbstractAAM {
     
     ZeroCFAStackAddr(Value* val, size_t offset) : val(val), offset(offset), StackAddr(KZeroCFAStackAddr) {
       assert(isa<AllocaInst>(val));
+    }
+    
+    static void setInitFunc(Function* f) {
+      initFunc = f;
+    }
+    
+    static ZeroCFAStackAddrPtrType initFp() {
+      assert(initFunc != nullptr);
+      static auto fp = make(initFunc);
+      return fp;
     }
     
     static bool classof(const Location* loc) {
@@ -82,8 +94,8 @@ namespace AbstractAAM {
     }
 
   private:
-    Value* val;
     size_t offset;
+    Value* val;
   };
   
   typedef ZeroCFAStackAddr ZeroCFAFrameAddr;
@@ -163,6 +175,12 @@ namespace AbstractAAM {
       return d;
     }
     
+    static DPtr makeD(ValPtr v) {
+      auto d = makeMtD();
+      d->inplaceAdd(v);
+      return d;
+    }
+    
     void inplaceAdd(ValPtr val) {
       set.insert(val);
     }
@@ -218,20 +236,21 @@ namespace AbstractAAM {
   class AbstractNat {
   public:
     enum AbstractNatEnum { Zero, One, Inf };
+    typedef std::shared_ptr<AbstractNat> AbstractNatPtrType;
   
     AbstractNat(AbstractNatEnum e) : e(e) {};
     
-    static std::shared_ptr<AbstractNat> getZeroInstance() {
+    static AbstractNatPtrType getZeroInstance() {
       static auto z = std::make_shared<AbstractNat>(Zero);
       return z;
     }
     
-    static std::shared_ptr<AbstractNat> getOneInstance() {
+    static AbstractNatPtrType getOneInstance() {
       static auto o = std::make_shared<AbstractNat>(One);
       return o;
     }
     
-    static std::shared_ptr<AbstractNat> getInfInstance() {
+    static AbstractNatPtrType getInfInstance() {
       static auto i = std::make_shared<AbstractNat>(Inf);
       return i;
     }
@@ -253,6 +272,11 @@ namespace AbstractAAM {
       if (a == Inf) {
         return Inf;
       }
+    }
+    
+    static AbstractNatPtrType plus(AbstractNatPtrType a, AbstractNatPtrType b) {
+      AbstractNatEnum res = plus(a->e, b->e);
+      return std::make_shared<AbstractNat>(res);
     }
     
     size_t hashValue() {
@@ -287,7 +311,9 @@ namespace AbstractAAM {
   
   typedef Store<Location, AbsLoc, LocationLess> AbsPred;
   
-  typedef Store<Location, AbstractNat, LocationLess> AbsMeasure;
+  class AbsMeasure : public Store<Location, AbstractNat, LocationLess> {
+    
+  };
   
   class AbsConf : public Conf<AbsStore, AbsSucc, AbsPred, AbsMeasure> {
   public:
@@ -362,6 +388,9 @@ namespace AbstractAAM {
       return *a == *b;
     }
   };
+  
+  std::shared_ptr<AbsStore> getInitStore(Module& M);
+  std::shared_ptr<AbsConf> getInitConf(Module& M);
   
   class AbsState;
   
@@ -479,6 +508,19 @@ namespace AbstractAAM {
     static StatePtrType makeState(CPtrType c, EPtrType e, SPtrType s, KPtrType k) {
       auto state = std::make_shared<AbsState>(c, e, s, k);
       return state;
+    }
+    
+    static StatePtrType inject(Module& M, std::string mainFuncName) {
+      std::shared_ptr<AbsConf> initConf = getInitConf(M);
+      Function* main = M.getFunction(mainFuncName);
+      Instruction* entry = getEntry(*main);
+      std::shared_ptr<Stmt> initStmt = std::make_shared<Stmt>(entry);
+      
+      ZeroCFAStackAddr::setInitFunc(main);
+      auto initFp = ZeroCFAStackAddr::initFp();
+      
+      std::shared_ptr<AbsState> initState = makeState(initStmt, initFp, initConf, initFp);
+      return initState;
     }
   };
 }

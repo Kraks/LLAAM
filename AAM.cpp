@@ -194,7 +194,7 @@ namespace {
       assert(int2->hashValue() != int1->hashValue());
       
       std::shared_ptr<FrameAddr> fp = std::make_shared<ConcreteFrameAddr>();
-      auto store = getInitStore(M);
+      auto store = ConcreteAAM::getInitStore(M);
       
       auto& args = mainFunc->getArgumentList();
       if (args.size() != 0) {

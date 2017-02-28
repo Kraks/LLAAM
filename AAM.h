@@ -682,7 +682,6 @@ namespace AAM {
     };
     
     void inplaceRemove(Store<K,V,Less>::Key key) {
-      
       m.erase(key);
     };
     
@@ -782,8 +781,8 @@ namespace AAM {
     Instruction* inst;
     
   public:
-    Stmt(Instruction* inst): inst(inst), prev(nullptr) {}
-    Stmt(Instruction* inst, Instruction* prev) : inst(inst), prev(prev) {}
+    Stmt(Instruction* inst): prev(nullptr), inst(inst) {}
+    Stmt(Instruction* inst, Instruction* prev) : prev(prev), inst(inst) {}
     
     Instruction* getInst() { return inst; }
     

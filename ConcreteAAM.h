@@ -95,6 +95,7 @@ namespace ConcreteAAM {
     
     static ConcreteStackAddrPtrType initFp() {
       static ConcreteStackAddrPtrType initFp = makeConcreteStackAddr();
+      assert(initFp->id == 0);
       return initFp;
     }
     
