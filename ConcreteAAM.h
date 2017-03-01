@@ -94,8 +94,8 @@ namespace ConcreteAAM {
     }
     
     static ConcreteStackAddrPtrType initFp() {
-      static ConcreteStackAddrPtrType initFp = makeConcreteStackAddr();
-      assert(initFp->id == 0);
+      static const ConcreteStackAddrPtrType initFp = makeConcreteStackAddr();
+      assert(initFp->myId == 0);
       return initFp;
     }
     
@@ -861,7 +861,8 @@ namespace ConcreteAAM {
       Function* main = M.getFunction(mainFuncName);
       Instruction* entry = getEntry(*main);
       std::shared_ptr<Stmt> initStmt = std::make_shared<Stmt>(entry);
-      std::shared_ptr<ConcreteState> initState = makeState(initStmt, ConcreteStackAddr::initFp(), initConf, ConcreteStackAddr::initFp());
+      auto initFp = ConcreteStackAddr::initFp();
+      std::shared_ptr<ConcreteState> initState = makeState(initStmt, initFp, initConf, initFp);
       return initState;
     }
     
