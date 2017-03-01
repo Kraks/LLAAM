@@ -306,6 +306,13 @@ namespace {
       d3->inplaceAdd(i3);
       d3->print();
       
+      auto store = std::make_shared<AbsStore>();
+      auto loc1 = ZeroCFAStackAddr::make(mainFunc);
+      store->inplaceUpdate(loc1, d3);
+      auto resOpt = store->lookup(loc1);
+      assert(resOpt.hasValue());
+      auto res = resOpt.getValue();
+      assert(res->size() == 3);
     }
 
     bool runOnModule(Module& M) override {
@@ -313,8 +320,8 @@ namespace {
       AbsState::setModule(&M);
       //test1(M);
       //test2(M);
-      //test3(M);
-      testConcrete(M);
+      test3(M);
+      //testConcrete(M);
       return false;
     }
 

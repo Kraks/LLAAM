@@ -326,6 +326,7 @@ namespace AbstractAAM {
   struct JoinUpdater {
     std::shared_ptr<V> operator()(const std::shared_ptr<V>& oldOne,
                                   const std::shared_ptr<V>& newOne) const {
+      errs() << "JoinUpdater\n";
       auto newD = newOne->copy();
       newD->inplaceJoin(oldOne);
       return newD;
@@ -340,7 +341,6 @@ namespace AbstractAAM {
     }
   };
   
-  //TODO: support update strategy
   typedef Store<Location, AbsD, LocationLess, JoinUpdater<AbsD>> AbsStore;
   
   typedef Store<Location, AbsLoc, LocationLess, JoinUpdater<AbsLoc>> AbsSucc;

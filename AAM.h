@@ -673,7 +673,13 @@ namespace AAM {
     std::shared_ptr<Store<K,V,Less,Updater>> update(Store<K,V,Less,Updater>::Key key, Store<K,V,Less,Updater>::Val val) {
       static Updater updater;
       auto newMap = m;
-      newMap[key] = updater(m[key], val);
+      auto it = m.find(key);
+      if (it != m.end()) {
+        newMap[key] = updater(m[key], val);
+      }
+      else {
+        newMap[key] = val;
+      }
       std::shared_ptr<Store<K,V,Less,Updater>> newStore = std::make_shared<Store<K,V,Less,Updater>>(newMap);
       return newStore;
     };
@@ -687,7 +693,13 @@ namespace AAM {
     
     void inplaceUpdate(Store<K,V,Less,Updater>::Key key, Store<K,V,Less,Updater>::Val val) {
       static Updater updater;
-      m[key] = updater(m[key], val);
+      auto it = m.find(key);
+      if (it != m.end()) {
+        m[key] = updater(m[key], val);
+      }
+      else {
+        m[key] = val;
+      }
     }
    
     void inplaceRemove(Store<K,V,Less,Updater>::Key key) {
