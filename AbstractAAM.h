@@ -271,6 +271,11 @@ namespace AbstractAAM {
       return this->e == that.e;
     }
     
+    AbstractNatPtrType plus(AbstractNatPtrType x) {
+      AbstractNatEnum res = AbstractNat::plus(this->e, x->e);
+      return std::make_shared<AbstractNat>(res);
+    }
+    
     static AbstractNatEnum plus(AbstractNatEnum a, AbstractNatEnum b) {
       if (a == Zero) {
         return b;
@@ -327,6 +332,14 @@ namespace AbstractAAM {
     }
   };
   
+  template<class V>
+  struct PlusUpdater {
+    std::shared_ptr<V> operator()(const std::shared_ptr<V>& oldOne,
+                                  const std::shared_ptr<V>& newOne) const {
+      return oldOne->plus(newOne);
+    }
+  };
+  
   //TODO: support update strategy
   typedef Store<Location, AbsD, LocationLess, JoinUpdater<AbsD>> AbsStore;
   
@@ -334,9 +347,7 @@ namespace AbstractAAM {
   
   typedef Store<Location, AbsLoc, LocationLess, JoinUpdater<AbsLoc>> AbsPred;
   
-  class AbsMeasure : public Store<Location, AbstractNat, LocationLess, ReplaceUpdater<AbstractNat>> {
-    
-  };
+  typedef Store<Location, AbstractNat, LocationLess, PlusUpdater<AbstractNat>> AbsMeasure;
   
   class AbsConf : public Conf<AbsStore, AbsSucc, AbsPred, AbsMeasure> {
   public:
