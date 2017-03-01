@@ -304,7 +304,6 @@ namespace {
       d3->inplaceAdd(f1);
       d3->inplaceAdd(i2);
       d3->inplaceAdd(i3);
-      d3->print();
       
       auto store = std::make_shared<AbsStore>();
       auto loc1 = ZeroCFAStackAddr::make(mainFunc);
@@ -319,6 +318,30 @@ namespace {
       store->inplaceUpdate(loc1, d4);
       res = store->lookup(loc1).getValue();
       assert(res->size() == 4);
+  
+      auto zero = AbstractNat::getZeroInstance();
+      auto one = AbstractNat::getOneInstance();
+      auto inf = AbstractNat::getInfInstance();
+      auto measure = std::make_shared<AbsMeasure>();
+      measure->inplaceUpdate(loc1, zero);
+      auto mResOpt = measure->lookup(loc1);
+      assert(mResOpt.hasValue());
+      auto mRes = mResOpt.getValue();
+      assert(mRes->getVal() == AbstractNat::Zero);
+      
+      measure->inplaceUpdate(loc1, zero);
+      mRes = measure->lookup(loc1).getValue();
+      assert(mRes->getVal() == AbstractNat::Zero);
+  
+      measure->inplaceUpdate(loc1, one);
+      mRes = measure->lookup(loc1).getValue();
+      assert(mRes->getVal() == AbstractNat::One);
+      
+      measure->inplaceUpdate(loc1, one);
+      mRes = measure->lookup(loc1).getValue();
+      assert(mRes->getVal() == AbstractNat::Inf);
+      
+      d3->print();
     }
 
     bool runOnModule(Module& M) override {

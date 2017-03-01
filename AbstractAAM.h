@@ -252,6 +252,8 @@ namespace AbstractAAM {
   
     AbstractNat(AbstractNatEnum e) : e(e) {};
     
+    AbstractNatEnum getVal() { return e; }
+    
     static AbstractNatPtrType getZeroInstance() {
       static auto z = std::make_shared<AbstractNat>(Zero);
       return z;
