@@ -676,8 +676,9 @@ namespace AAM {
     
     // Immutable update
     std::shared_ptr<Store<K,V,Less,Updater>> update(Store<K,V,Less,Updater>::Key key, Store<K,V,Less,Updater>::Val val) {
+      static Updater updater;
       auto newMap = m;
-      newMap[key] = val;
+      newMap[key] = updater(m[key], val);
       std::shared_ptr<Store<K,V,Less,Updater>> newStore = std::make_shared<Store<K,V,Less,Updater>>(newMap);
       return newStore;
     };
@@ -691,8 +692,7 @@ namespace AAM {
     
     void inplaceUpdate(Store<K,V,Less,Updater>::Key key, Store<K,V,Less,Updater>::Val val) {
       static Updater updater;
-      auto old = m[key];
-      m[key] = updater(old, val);
+      m[key] = updater(m[key], val);
     }
    
     void inplaceRemove(Store<K,V,Less,Updater>::Key key) {
