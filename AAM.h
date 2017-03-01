@@ -637,11 +637,6 @@ namespace AAM {
   
   template<class V>
   struct ReplaceUpdater {
-    std::shared_ptr<V> update(const std::shared_ptr<V>& oldOne,
-                              const std::shared_ptr<V>& newOne) const {
-      return newOne;
-    }
-    
     std::shared_ptr<V> operator()(const std::shared_ptr<V>& oldOne,
                                   const std::shared_ptr<V>& newOne) const {
       return newOne;

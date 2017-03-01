@@ -317,12 +317,22 @@ namespace AbstractAAM {
   
   typedef D<Location, LocationLess> AbsLoc;
   
+  template<class V>
+  struct JoinUpdater {
+    std::shared_ptr<V> operator()(const std::shared_ptr<V>& oldOne,
+                                  const std::shared_ptr<V>& newOne) const {
+      auto newD = newOne->copy();
+      newD->inplaceJoin(oldOne);
+      return newD;
+    }
+  };
+  
   //TODO: support update strategy
-  typedef Store<Location, AbsD, LocationLess, ReplaceUpdater<AbsD>> AbsStore;
+  typedef Store<Location, AbsD, LocationLess, JoinUpdater<AbsD>> AbsStore;
   
-  typedef Store<Location, AbsLoc, LocationLess, ReplaceUpdater<AbsLoc>> AbsSucc;
+  typedef Store<Location, AbsLoc, LocationLess, JoinUpdater<AbsLoc>> AbsSucc;
   
-  typedef Store<Location, AbsLoc, LocationLess, ReplaceUpdater<AbsLoc>> AbsPred;
+  typedef Store<Location, AbsLoc, LocationLess, JoinUpdater<AbsLoc>> AbsPred;
   
   class AbsMeasure : public Store<Location, AbstractNat, LocationLess, ReplaceUpdater<AbstractNat>> {
     
