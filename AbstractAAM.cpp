@@ -10,6 +10,24 @@ namespace AbstractAAM {
   Module* AbsState::module = nullptr;
   unsigned long long AbsState::id = 0;
   
+  std::shared_ptr<AbsD> evalAtom(Value* val,
+                                 std::shared_ptr<FrameAddr> fp,
+                                 std::shared_ptr<AbsConf> conf,
+                                 Module& M) {
+    // If val is a constant integer, return a D contains one element
+    if (ConstantInt* ci = dyn_cast<ConstantInt>(val)) {
+      auto i = IntValue::makeInt(ci->getValue());
+      return AbsD::makeD(i);
+    }
+    
+    // If val is a left-hand side value, return the value of its address
+    auto addr = BindAddr::makeBindAddr(val, fp);
+    auto valOpt = conf->getStore()->lookup(addr);
+    assert(valOpt.hasValue());
+    auto value = valOpt.getValue();
+    return value;
+  }
+  
   std::shared_ptr<AbsStore> getInitStore(Module& M) {
     std::shared_ptr<AbsStore> store = std::make_shared<AbsStore>();
     auto initFp = ZeroCFAStackAddr::initFp();
@@ -41,7 +59,6 @@ namespace AbstractAAM {
     }
   
     assert(store->size() == (funcs.size() + globs.size()));
-  
     return store;
   }
   

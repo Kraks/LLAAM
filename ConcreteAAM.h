@@ -140,11 +140,11 @@ namespace ConcreteAAM {
   
   typedef ConcreteStackAddr ConcreteFrameAddr;
   
-  typedef Store<Location, AbstractValue, LocationLess> ConcreteStore;
+  typedef Store<Location, AbstractValue, LocationLess, ReplaceUpdater<AbstractValue>> ConcreteStore;
   
-  typedef Store<Location, Location, LocationLess> ConcreteSucc;
+  typedef Store<Location, Location, LocationLess, ReplaceUpdater<Location>> ConcreteSucc;
   
-  typedef Store<Location, Location, LocationLess> ConcretePred;
+  typedef Store<Location, Location, LocationLess, ReplaceUpdater<Location>> ConcretePred;
   
   class DummyMeasure {
   public:

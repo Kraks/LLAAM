@@ -634,8 +634,21 @@ namespace AAM {
   };
   
   ///////////////////////////////////////////
+  
+  template<class V>
+  struct ReplaceUpdater {
+    std::shared_ptr<V> update(const std::shared_ptr<V>& oldOne,
+                              const std::shared_ptr<V>& newOne) const {
+      return newOne;
+    }
+    
+    std::shared_ptr<V> operator()(const std::shared_ptr<V>& oldOne,
+                                  const std::shared_ptr<V>& newOne) const {
+      return newOne;
+    }
+  };
 
-  template<class K, class V, class Less>
+  template<class K, class V, class Less, class Updater>
   class Store {
   public:
     typedef std::shared_ptr<K> Key;
@@ -649,43 +662,44 @@ namespace AAM {
       return m.size();
     }
     
-    std::shared_ptr<Store<K,V,Less>> copy() {
+    std::shared_ptr<Store<K,V,Less,Updater>> copy() {
       auto newMap = m;
-      auto newStore = std::make_shared<Store<K,V,Less>>(newMap);
+      auto newStore = std::make_shared<Store<K,V,Less,Updater>>(newMap);
       return newStore;
     };
     
-    Optional<Store<K,V,Less>::Val> lookup(Store<K,V,Less>::Key key) {
+    Optional<Store<K,V,Less,Updater>::Val> lookup(Store<K,V,Less,Updater>::Key key) {
       auto it = m.find(key);
       if (it != m.end()) return it->second;
       return None;
     }
     
     // Immutable update
-    std::shared_ptr<Store<K,V,Less>> update(Store<K,V,Less>::Key key, Store<K,V,Less>::Val val) {
+    std::shared_ptr<Store<K,V,Less,Updater>> update(Store<K,V,Less,Updater>::Key key, Store<K,V,Less,Updater>::Val val) {
       auto newMap = m;
       newMap[key] = val;
-      std::shared_ptr<Store<K,V,Less>> newStore = std::make_shared<Store<K,V,Less>>(newMap);
+      std::shared_ptr<Store<K,V,Less,Updater>> newStore = std::make_shared<Store<K,V,Less,Updater>>(newMap);
       return newStore;
     };
-    
-    void inplaceUpdate(Store<K,V,Less>::Key key, Store<K,V,Less>::Val val) {
-      m[key] = val;
-    }
-    
     // Immutable remove
-    std::shared_ptr<Store<K,V,Less>> remove(Store<K,V,Less>::Key key) {
+    std::shared_ptr<Store<K,V,Less,Updater>> remove(Store<K,V,Less,Updater>::Key key) {
       auto newMap = m;
       newMap.erase(key);
-      std::shared_ptr<Store<K,V,Less>> newStore = std::make_shared<Store<K,V,Less>>(newMap);
+      std::shared_ptr<Store<K,V,Less,Updater>> newStore = std::make_shared<Store<K,V,Less,Updater>>(newMap);
       return newStore;
     };
     
-    void inplaceRemove(Store<K,V,Less>::Key key) {
+    void inplaceUpdate(Store<K,V,Less,Updater>::Key key, Store<K,V,Less,Updater>::Val val) {
+      static Updater updater;
+      auto old = m[key];
+      m[key] = updater(old, val);
+    }
+   
+    void inplaceRemove(Store<K,V,Less,Updater>::Key key) {
       m.erase(key);
     };
     
-    inline bool operator==(Store<K,V,Less>& that) {
+    inline bool operator==(Store<K,V,Less,Updater>& that) {
       auto pred = [] (decltype(*m.begin()) a, decltype(*m.begin()) b) {
         return *a.first == *b.first && *a.second == *b.second;
       };
@@ -693,7 +707,7 @@ namespace AAM {
              std::equal(this->m.begin(), this->m.end(), that.m.begin(), pred);
     }
     
-    inline bool operator!=(Store<K,V,Less>& that) {
+    inline bool operator!=(Store<K,V,Less,Updater>& that) {
       return !(*this == that);
     }
     

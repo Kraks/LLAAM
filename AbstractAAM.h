@@ -26,6 +26,7 @@ namespace AbstractAAM {
     }
     
     static void setInitFunc(Function* f) {
+      assert(f != nullptr);
       initFunc = f;
     }
     
@@ -59,11 +60,10 @@ namespace AbstractAAM {
     }
     
     virtual bool isInitFp() override {
-      // TODO: work on arbitrary function as entrance.
       if (!isa<Function>(val))
         return false;
       auto* f = dyn_cast<Function>(val);
-      return f->getName() == "main";
+      return f == initFunc;
     }
     
     virtual bool equalTo(const Location& that) const override {
@@ -170,6 +170,14 @@ namespace AbstractAAM {
       return newD;
     }
     
+    template<class A>
+    bool verify() {
+      for (auto it = set.begin(); it != set.end(); it++) {
+        if (!isa<A>(**it)) return false;
+      }
+      return true;
+    }
+    
     static DPtr makeMtD() {
       auto d = std::make_shared<D<T,Less>>();
       return d;
@@ -206,6 +214,10 @@ namespace AbstractAAM {
       }
       return seed;
     }
+    
+    std::set<ValPtr, Less>& getValueSet() {
+      return set;
+    };
     
     inline bool operator==(D& that) {
       auto pred = [] (decltype(*set.begin()) a, decltype(*set.begin()) b) {
@@ -305,13 +317,14 @@ namespace AbstractAAM {
   
   typedef D<Location, LocationLess> AbsLoc;
   
-  typedef Store<Location, AbsD, LocationLess> AbsStore;
+  //TODO: support update strategy
+  typedef Store<Location, AbsD, LocationLess, ReplaceUpdater<AbsD>> AbsStore;
   
-  typedef Store<Location, AbsLoc, LocationLess> AbsSucc;
+  typedef Store<Location, AbsLoc, LocationLess, ReplaceUpdater<AbsLoc>> AbsSucc;
   
-  typedef Store<Location, AbsLoc, LocationLess> AbsPred;
+  typedef Store<Location, AbsLoc, LocationLess, ReplaceUpdater<AbsLoc>> AbsPred;
   
-  class AbsMeasure : public Store<Location, AbstractNat, LocationLess> {
+  class AbsMeasure : public Store<Location, AbstractNat, LocationLess, ReplaceUpdater<AbstractNat>> {
     
   };
   
@@ -392,6 +405,11 @@ namespace AbstractAAM {
   std::shared_ptr<AbsStore> getInitStore(Module& M);
   std::shared_ptr<AbsConf> getInitConf(Module& M);
   
+  std::shared_ptr<AbsD> evalAtom(Value* val,
+                                 std::shared_ptr<FrameAddr> fp,
+                                 std::shared_ptr<AbsConf> conf,
+                                 Module& M);
+  
   class AbsState;
   
   typedef PSet<AbsState> StateSet;
@@ -427,18 +445,40 @@ namespace AbstractAAM {
       if (isa<ReturnInst>(inst)) {
         ReturnInst* returnInst = dyn_cast<ReturnInst>(inst);
         auto fp = this->getFp();
+        
         if (fp->isInitFp()) {
-          // return in main method
+          // Return in main method
           if (opNum > 0) {
-            
+            auto ret = returnInst->getOperand(0);
+            auto rval = evalAtom(ret, this->getFp(), this->getConf(), *AbsState::getModule());
+            errs() << "Return: ";
+            rval->print();
+            errs() << "\n";
           }
           else {
-            
+            errs() << "Return: Void\n";
           }
           states->inplaceInsert(this->copy());
         }
         else {
-            
+          // Return to other functions
+          auto contsOpt = this->getConf()->getStore()->lookup(this->getFp());
+          assert(contsOpt.hasValue());
+          auto conts = contsOpt.getValue();
+          assert(conts->template verify<Cont>());
+          auto& contVals = conts->getValueSet();
+          
+          auto newStore = this->getConf()->getStore()->copy();
+          
+          if (opNum > 0) {
+            auto ret = returnInst->getOperand(0);
+            auto retVals = evalAtom(ret, getFp(), getConf(), *AbsState::getModule());
+            for (auto it = contVals.begin(); it != contVals.end(); it++) {
+              auto cont = dyn_cast<Cont>(&**it);
+              auto lhs = cont->getLhs();
+              auto destAddr = BindAddr::makeBindAddr(lhs, cont->getFrameAddr());
+            }
+          }
         }
       }
       else if (isa<CallInst>(inst)) {
