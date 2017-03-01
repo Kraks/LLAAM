@@ -313,6 +313,12 @@ namespace {
       assert(resOpt.hasValue());
       auto res = resOpt.getValue();
       assert(res->size() == 3);
+      
+      auto d4 = AbsD::makeMtD();
+      d4->inplaceAdd(IntValue::makeInt(5));
+      store->inplaceUpdate(loc1, d4);
+      res = store->lookup(loc1).getValue();
+      assert(res->size() == 4);
     }
 
     bool runOnModule(Module& M) override {
