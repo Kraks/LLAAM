@@ -140,6 +140,14 @@ namespace ConcreteAAM {
   
   typedef ConcreteStackAddr ConcreteFrameAddr;
   
+  template<class V>
+  struct ReplaceUpdater {
+    std::shared_ptr<V> operator()(const std::shared_ptr<V>& oldOne,
+                                  const std::shared_ptr<V>& newOne) const {
+      return newOne;
+    }
+  };
+
   typedef Store<Location, AbstractValue, LocationLess, ReplaceUpdater<AbstractValue>> ConcreteStore;
   
   typedef Store<Location, Location, LocationLess, ReplaceUpdater<Location>> ConcreteSucc;
