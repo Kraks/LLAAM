@@ -701,6 +701,10 @@ namespace AAM {
         m[key] = val;
       }
     }
+    
+    void inplaceStrongUpdate(Store<K,V,Less,Updater>::Key key, Store<K,V,Less,Updater>::Val val) {
+      m[key] = val;
+    }
    
     void inplaceRemove(Store<K,V,Less,Updater>::Key key) {
       m.erase(key);

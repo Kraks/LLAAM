@@ -526,6 +526,74 @@ namespace AbstractAAM {
         Value* f = callInst->getCalledFunction();
         Function* function = nullptr;
         
+        if (f) {
+          // Call a function with literal name
+          function = dyn_cast<Function>(f);
+        }
+        else {
+          // Call a function with some variable
+          // Note: Called function is the last operand
+          size_t fpos = callInst->getNumOperands() - 1;
+          Value* fop = callInst->getOperand(fpos);
+          auto faddr = BindAddr::makeBindAddr(fop, getFp());
+          auto valOpt = getConf()->getStore()->lookup(faddr);
+          assert(valOpt.hasValue());
+          auto val = valOpt.getValue();
+          auto& valSet = val->getValueSet();
+          // Note: Since the setting is first-order function, so we
+          // assert the size of value is 1.
+          assert(valSet.size() == 1 && "multiple functions");
+          auto fval = dyn_cast<FuncValue>(&**valSet.begin());
+          function = fval->getFunction();
+        }
+        
+        std::string fname = function->getName();
+        auto actualArgs = callInst->arg_operands();
+        auto& formalArgs = function->getArgumentList();
+        
+        if (fname == "malloc") {}
+        else if (fname == "free") {}
+        else {
+          auto entry = getEntry(*function);
+          auto entryStmt = Stmt::makeStmt(entry);
+          std::vector<std::shared_ptr<AbsD>> ds;
+          
+          for (auto& arg : actualArgs) {
+            auto valArg = arg.get();
+            auto arg_v = evalAtom(valArg, getFp(), getConf(), *AbsState::getModule());
+            ds.push_back(arg_v);
+          }
+          assert(ds.size() == formalArgs.size());
+          
+          auto newFP = ZeroCFAFrameAddr::make(function);
+          auto newSP = newFP;
+          
+          auto newStore = getConf()->getStore()->copy();
+          auto newMeasure = getConf()->getMeasure()->copy();
+          //TODO: if no lhs waiting for a assignment, pass nullptr instead of inst
+          auto cont = Cont::makeCont(inst, nextInst, getFp(), getSp());
+          auto contD = AbsD::makeD(cont);
+          newStore->inplaceUpdate(newFP, contD);
+          newMeasure->inplaceUpdate(newFP, AbstractNat::getOneInstance());
+          
+          auto ds_it = ds.begin();
+          auto fa_it = formalArgs.begin();
+          for (; ds_it != ds.end() &&
+                 fa_it != formalArgs.end();
+                 ds_it++, fa_it++) {
+            auto addr = BindAddr::makeBindAddr(&*fa_it, newFP);
+            //TODO: strong update or join depends on measure
+            newStore->inplaceUpdate(addr, *ds_it);
+            newMeasure->inplaceUpdate(addr, AbstractNat::getOneInstance());
+          }
+  
+          auto newConf = AbsConf::makeAbsConf(newStore,
+                                              getConf()->getSucc(),
+                                              getConf()->getPred(),
+                                              newMeasure);
+          auto newState = AbsState::makeState(entryStmt, newFP, newConf, newSP);
+          states->inplaceInsert(newState);
+        }
       }
       else if (isa<LoadInst>(inst)) {
       

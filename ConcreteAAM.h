@@ -419,7 +419,7 @@ namespace ConcreteAAM {
           auto newSP = newFP;
           
           auto newStore = this->getConf()->getStore()->copy();
-          //TODO: if just a call function, pass nullptr instead of inst
+          //TODO: if just a call function(with out lhs), pass nullptr instead of inst
           auto cont = Cont::makeCont(inst, nextInst, this->getFp(), this->getSp());
           newStore->inplaceUpdate(newFP, cont);
           
