@@ -499,7 +499,25 @@ namespace AbstractAAM {
               auto cont = dyn_cast<Cont>(&**it);
               auto lhs = cont->getLhs();
               auto destAddr = BindAddr::makeBindAddr(lhs, cont->getFrameAddr());
+              newStore->inplaceUpdate(destAddr, retVals);
             }
+          }
+          
+          auto newConf = AbsConf::makeAbsConf(newStore,
+                                              getConf()->getSucc(),
+                                              getConf()->getPred(),
+                                              getConf()->getMeasure());
+          //TODO: GC
+          
+          for (auto it = contVals.begin(); it != contVals.end(); it++) {
+            auto cont = dyn_cast<Cont>(&**it);
+            auto inst = cont->getInst();
+            auto calleeStmt = Stmt::makeStmt(inst);
+            auto newState = AbsState::makeState(calleeStmt,
+                                                cont->getFrameAddr(),
+                                                newConf,
+                                                cont->getStackAddr());
+            states->inplaceInsert(newState);
           }
         }
       }
