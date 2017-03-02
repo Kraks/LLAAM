@@ -170,6 +170,14 @@ namespace AbstractAAM {
       return newD;
     }
     
+    std::shared_ptr<AbstractNat> getMeasure() {
+      if (set.size() == 0)
+        return AbstractNat::getZeroInstance();
+      if (set.size() == 1)
+        return AbstractNat::getOneInstance();
+      return AbstractNat::getInfInstance();
+    }
+    
     template<class A>
     bool verify() {
       for (auto it = set.begin(); it != set.end(); it++) {
@@ -817,9 +825,42 @@ namespace AbstractAAM {
       else if (isa<LoadInst>(inst)) {
         LoadInst* loadInst = dyn_cast<LoadInst>(inst);
         auto destAddr = BindAddr::makeBindAddr(loadInst, getFp());
+        auto destVal = AbsD::makeMtD();
         
         Value* op0 = loadInst->getOperand(0);
+        std::shared_ptr<AbsLoc> fromAddrs = addrsOf(op0, getFp(), getConf(), *AbsState::getModule());
+        for (auto& fromAddr : fromAddrs->getValueSet()) {
+          auto valsOpt = getConf()->getStore()->lookup(fromAddr);
+          assert(valsOpt.hasValue());
+          auto vals = valsOpt.getValue();
+          if (loadInst->getType()->isIntegerTy()) {
+            assert(vals->template verify<IntValue>());
+          }
+          else if (loadInst->getType()->isPointerTy()) {
+            assert(vals->template verify<LocationValue>());
+          }
+          destVal->inplaceJoin(vals);
+        }
         
+        auto one = AbstractNat::getOneInstance();
+        auto newStore = getConf()->getStore()->copy();
+        auto newMeasure = getConf()->getMeasure()->copy();
+        newStore->inplaceStrongUpdateWhen(destAddr, destVal, [&]() {
+          auto mOpt = getConf()->getMeasure()->lookup(destAddr);
+          if (!mOpt.hasValue() || *mOpt.getValue() <= *one) {
+            newMeasure->inplaceStrongUpdate(destAddr, destVal->getMeasure());
+            return true;
+          }
+          newMeasure->inplaceUpdate(destAddr, destVal->getMeasure());
+          return false;
+        });
+  
+        auto newConf = AbsConf::makeAbsConf(newStore,
+                                            getConf()->getSucc(),
+                                            getConf()->getPred(),
+                                            newMeasure);
+        auto newState = AbsState::makeState(nextStmt, getFp(), newConf, getSp());
+        states->inplaceInsert(newState);
       }
       else if (isa<StoreInst>(inst)) {
       

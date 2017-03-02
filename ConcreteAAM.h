@@ -468,7 +468,7 @@ namespace ConcreteAAM {
         
         /*
         errs() << "op(0): ";
-        storeInst->getOperand(0)->print(errs());
+         ()
         errs() << ". type: " << storeInst->getOperand(0)->getType()->getTypeID();
         errs() << "\nop0 constantint?: " << (isa<ConstantInt>(op0)) << "\n";
         errs() << "op(1): ";
