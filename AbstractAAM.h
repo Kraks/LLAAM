@@ -542,6 +542,8 @@ namespace AbstractAAM {
           auto& contVals = conts->getValueSet();
           
           auto newStore = this->getConf()->getStore()->copy();
+          auto newMeasure = this->getConf()->getMeasure()->copy();
+          auto one = AbstractNat::getOneInstance();
           
           if (opNum > 0) {
             auto ret = returnInst->getOperand(0);
@@ -550,16 +552,31 @@ namespace AbstractAAM {
               auto cont = dyn_cast<Cont>(&**it);
               auto lhs = cont->getLhs();
               auto destAddr = BindAddr::makeBindAddr(lhs, cont->getFrameAddr());
-              newStore->inplaceUpdate(destAddr, retVals);
+              newStore->inplaceStrongUpdateWhen(destAddr, retVals, [&]() {
+                auto m = getConf()->getMeasure()->lookup(destAddr);
+                if (!m.hasValue() || *m.getValue() <= *one) {
+                  newMeasure->inplaceStrongUpdate(destAddr, one);
+                  return true;
+                }
+                newMeasure->inplaceUpdate(destAddr, one);
+                return false;
+              });
             }
           }
           
           auto newConf = AbsConf::makeAbsConf(newStore,
                                               getConf()->getSucc(),
                                               getConf()->getPred(),
-                                              getConf()->getMeasure());
+                                              newMeasure);
           
-          //TODO: GC on FP & SP
+          newConf->inplaceRemoveWhen(getFp(), [&]() {
+            auto m = getConf()->getMeasure()->lookup(getFp());
+            return (!m.hasValue() || *m.getValue() <= *one);
+          });
+          newConf->inplaceRemoveWhen(getSp(), [&]() {
+            auto m = getConf()->getMeasure()->lookup(getSp());
+            return (!m.hasValue() || *m.getValue() <= *one);
+          });
           
           for (auto it = contVals.begin(); it != contVals.end(); it++) {
             auto cont = dyn_cast<Cont>(&**it);
@@ -667,11 +684,9 @@ namespace AbstractAAM {
               newMeasure->inplaceStrongUpdate(destAddr, one);
               return true;
             }
-            else {
-              // If the measure if Inf, we need to join them
-              newMeasure->inplaceUpdate(destAddr, one);
-              return false;
-            }
+            // If the measure if Inf, we need to join them
+            newMeasure->inplaceUpdate(destAddr, one);
+            return false;
           });
           
           for (unsigned long i = 0; i < addrs->size()-1; i++) {
@@ -781,10 +796,8 @@ namespace AbstractAAM {
                 newMeasure->inplaceStrongUpdate(addr, one);
                 return true;
               }
-              else {
-                newMeasure->inplaceUpdate(addr, one);
-                return false;
-              }
+              newMeasure->inplaceUpdate(addr, one);
+              return false;
             });
           }
   
