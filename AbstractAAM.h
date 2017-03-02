@@ -516,7 +516,8 @@ namespace AbstractAAM {
                                               getConf()->getSucc(),
                                               getConf()->getPred(),
                                               getConf()->getMeasure());
-          //TODO: GC
+          
+          //TODO: GC on FP & SP
           
           for (auto it = contVals.begin(); it != contVals.end(); it++) {
             auto cont = dyn_cast<Cont>(&**it);
@@ -560,8 +561,12 @@ namespace AbstractAAM {
         auto actualArgs = callInst->arg_operands();
         auto& formalArgs = function->getArgumentList();
         
-        if (fname == "malloc") {}
-        else if (fname == "free") {}
+        if (fname == "malloc") {
+          
+        }
+        else if (fname == "free") {
+          
+        }
         else {
           auto entry = getEntry(*function);
           auto entryStmt = Stmt::makeStmt(entry);
@@ -592,8 +597,6 @@ namespace AbstractAAM {
                  ds_it++, fa_it++) {
             auto addr = BindAddr::makeBindAddr(&*fa_it, newFP);
             //TODO: upadte meausre of local variables
-            //TODO: strong update or join depends on measure
-            //newStore->inplaceUpdate(addr, *ds_it);
             newStore->inplaceStrongUpdateWhen(addr, *ds_it, [&]() {
               auto mOpt = newMeasure->lookup(addr);
               if (!mOpt.hasValue()) return true;
@@ -606,7 +609,7 @@ namespace AbstractAAM {
   
           auto newConf = AbsConf::makeAbsConf(newStore,
                                               getConf()->getSucc(),
-                                               getConf()->getPred(),
+                                              getConf()->getPred(),
                                               newMeasure);
           auto newState = AbsState::makeState(entryStmt, newFP, newConf, newSP);
           states->inplaceInsert(newState);

@@ -273,11 +273,9 @@ namespace AAM {
    * AbstractValue = Cont
    *               | LocationValue
    *               | FuncValue
-   *               | PrimValue
-   *
-   * PrimValue = PrimValue
-   *           | IntValue
-   *           | BotValue
+   *               | AnyIntValue
+   *                 | IntValue
+   *               | BotValue
    */
   class AbstractValue {
   public:
@@ -518,14 +516,14 @@ namespace AAM {
   };
   
   // Represent all primitive values
-  class PrimValue : public AbstractValue {
+  class AnyIntValue : public AbstractValue {
   public:
-    typedef std::shared_ptr<PrimValue> PrimValuePtrType;
+    typedef std::shared_ptr<AnyIntValue> AnyIntValuePtrType;
     //TODO: make sure the constructor only called once.
-    PrimValue() : AbstractValue(KPrimV) {}
+    AnyIntValue() : AbstractValue(KPrimV) {}
     
-    static PrimValuePtrType getInstance() {
-      static PrimValuePtrType instance = std::make_shared<PrimValue>();
+    static AnyIntValuePtrType getInstance() {
+      static AnyIntValuePtrType instance = std::make_shared<AnyIntValue>();
       return instance;
     }
     static bool classof(const AbstractValue* v) {
@@ -535,32 +533,32 @@ namespace AAM {
     
     virtual size_t hashValue() override {
       size_t seed = 0;
-      seed = hash_combine(seed, hash_value("PrimValue"));
+      seed = hash_combine(seed, hash_value("AnyIntValue"));
       return seed;
     }
     
     virtual void print() const override {
-      errs() << "PrimValue";
+      errs() << "AnyIntValue";
     }
   
   protected:
-    PrimValue(ValKind k) : AbstractValue(k) {}
+    AnyIntValue(ValKind k) : AbstractValue(k) {}
     
     virtual bool equalTo(const AbstractValue& that) const override {
-      return isa<PrimValue>(&that);
+      return isa<AnyIntValue>(&that);
     }
   };
   
   /**
    * Assume that the IntValue is the only type in the system.
    */
-  class IntValue : public PrimValue {
+  class IntValue : public AnyIntValue {
   private:
     APInt val;
     
   public:
     typedef std::shared_ptr<IntValue> IntValuePtrType;
-    IntValue(APInt val) : PrimValue(KIntV), val(val) {}
+    IntValue(APInt val) : AnyIntValue(KIntV), val(val) {}
     
     APInt& getValue() {
       return val;
@@ -603,11 +601,11 @@ namespace AAM {
     }
   };
   
-  class BotValue : public PrimValue {
+  class BotValue : public AbstractValue {
   public:
     typedef std::shared_ptr<BotValue> BotValuePtrType;
     //TODO: make sure the constructor only called once.
-    BotValue() : PrimValue(KBotV) {}
+    BotValue() : AbstractValue(KBotV) {}
   
     static BotValuePtrType getInstance() {
       static BotValuePtrType instance = std::make_shared<BotValue>();

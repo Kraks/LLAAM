@@ -32,8 +32,8 @@ namespace {
   
       std::shared_ptr<FuncValue> f1 = std::make_shared<FuncValue>(mainFunc);
       std::shared_ptr<FuncValue> f2 = std::make_shared<FuncValue>(mainFunc);
-      //std::shared_ptr<PrimValue> pv = std::make_shared<PrimValue>();
-      std::shared_ptr<PrimValue> pv = PrimValue::getInstance();
+      //std::shared_ptr<AnyIntValue> pv = std::make_shared<AnyIntValue>();
+      std::shared_ptr<AnyIntValue> pv = AnyIntValue::getInstance();
       assert((*f1.get() == *f2.get()));
       //errs() << "functions eq: " << (*f1.get() == *f2.get()) << "\n"; // true
       
@@ -115,17 +115,17 @@ namespace {
       shared_ptr<AbstractValue> someV = store.lookup(sp2).getValue();
       //errs() << AbstractValue::KindToString(someV->getKind()) << "\n";
       
-      shared_ptr<PrimValue> fakepv = static_pointer_cast<PrimValue>(store.lookup(sp2).getValue());
+      shared_ptr<AnyIntValue> fakepv = static_pointer_cast<AnyIntValue>(store.lookup(sp2).getValue());
       assert(!(fakepv == nullptr));
   
       someV = store.lookup(hp1).getValue();
       //errs() << AbstractValue::KindToString(someV->getKind()) << "\n";
-      assert(isa<PrimValue>(*someV));
+      assert(isa<AnyIntValue>(*someV));
       someV = store.lookup(hp2).getValue();
       assert(!isa<FuncValue>(*someV));
   
-      shared_ptr<PrimValue> pv1 = static_pointer_cast<PrimValue>(store.lookup(hp1).getValue());
-      shared_ptr<PrimValue> pv2 = static_pointer_cast<PrimValue>(store.lookup(hp2).getValue());
+      shared_ptr<AnyIntValue> pv1 = static_pointer_cast<AnyIntValue>(store.lookup(hp1).getValue());
+      shared_ptr<AnyIntValue> pv2 = static_pointer_cast<AnyIntValue>(store.lookup(hp2).getValue());
       std::shared_ptr<AbstractValue> ap(pv1);
       assert(*ap == *pv1);
       assert(*pv1 == *pv2);
@@ -138,7 +138,7 @@ namespace {
         assert(store4.size() == 5);
         assert(store.size() == 5);
         //errs() << "classof: " << AbstractValue::KindToString(someV->getKind()) << "\n";
-        assert(isa<PrimValue>(*someV));
+        assert(isa<AnyIntValue>(*someV));
         
         someV = store.lookup(sp1).getValue();
         assert(isa<FuncValue>(*someV));
@@ -150,7 +150,7 @@ namespace {
       assert(store6.size() == 4);
       auto store7 = *store5.update(baddr1, pv);
       shared_ptr<AbstractValue> another_pv = store7.lookup(baddr2).getValue();
-      assert(isa<PrimValue>(*another_pv));
+      assert(isa<AnyIntValue>(*another_pv));
       
       Instruction* i1 = getEntry(*mainFunc);
       Instruction* i2 = getSyntacticNextInst(i1);
