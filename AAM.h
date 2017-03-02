@@ -44,6 +44,12 @@ namespace AAM {
   typedef std::string strvar;
   typedef Value* var;
   
+  typedef uint8_t RemoveOption;
+  const RemoveOption RM_ALL   = 0xFF;
+  const RemoveOption RM_STORE = 0x01;
+  const RemoveOption RM_SUCC  = 0x02;
+  const RemoveOption RM_PRED  = 0x04;
+  const RemoveOption RM_MEASURE = 0x08;
 
   /**
    * Location = HeapAddr
@@ -690,6 +696,12 @@ namespace AAM {
       return newStore;
     };
     
+    /**
+     * If find a value for `key`, then we use Updater to obtain final values for updating;
+     * otherwise, we just use the `val`.
+     * @param key
+     * @param val
+     */
     void inplaceUpdate(Store<K,V,Less,Updater>::Key key, Store<K,V,Less,Updater>::Val val) {
       static Updater updater;
       auto it = m.find(key);
@@ -705,6 +717,13 @@ namespace AAM {
       m[key] = val;
     }
     
+    /**
+     * If `pred` is true, then perform an inplace strong update,
+     * otherwise, perform inplace update (use Updater).
+     * @param key
+     * @param val
+     * @param pred
+     */
     void inplaceStrongUpdateWhen(Store<K,V,Less,Updater>::Key key,
                                  Store<K,V,Less,Updater>::Val val,
                                  std::function<bool()> pred) {

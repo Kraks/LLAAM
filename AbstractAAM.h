@@ -367,6 +367,47 @@ namespace AbstractAAM {
       auto c = std::make_shared<AbsConf>(store, succ, pred, m);
       return c;
     }
+    
+    AbsConfPtr copy() {
+      auto conf = makeAbsConf(getStore()->copy(),
+                              getSucc()->copy(),
+                              getPred()->copy(),
+                              getMeasure()->copy());
+      return conf;
+    }
+    
+    void inplaceRemove(AbsStore::Key key, RemoveOption opt = RM_ALL) {
+      if (opt & RM_STORE) {
+        errs() << "Remove ";
+        key->print();
+        errs() << " from store\n";
+        this->getStore()->inplaceRemove(key);
+      }
+      if (opt & RM_SUCC) {
+        errs() << "Remove ";
+        key->print();
+        errs() << " from succ\n";
+        this->getSucc()->inplaceRemove(key);
+      }
+      if (opt & RM_PRED) {
+        errs() << "Remove ";
+        key->print();
+        errs() << " from pred\n";
+        this->getPred()->inplaceRemove(key);
+      }
+      if (opt & RM_MEASURE) {
+        errs() << "Remove ";
+        key->print();
+        errs() << " from measure\n";
+        this->getMeasure()->inplaceRemove(key);
+      }
+    }
+    
+    void inplaceRemoveWhen(AbsStore::Key key, std::function<bool()> pred, RemoveOption opt = RM_ALL) {
+      if (pred()) {
+        inplaceRemove(key, opt);
+      }
+    }
   };
   
   template<typename T> struct PSetHasher;
@@ -566,76 +607,141 @@ namespace AbstractAAM {
           auto mallocSize = callInst->getOperand(0);
           auto bot = BotValue::getInstance();
           auto botD = AbsD::makeD(bot);
+          bool unknownSize = false;
+          int64_t nMalloc = -1;
           
           if (ConstantInt* mallocSizeCI = dyn_cast<ConstantInt>(mallocSize)) {
+            //TODO: Abstract to be a function
             // Malloc a size of constant int
-            int64_t nMalloc = mallocSizeCI->getSExtValue();
+            nMalloc = mallocSizeCI->getSExtValue();
+            unknownSize = false;
             errs() << "malloc size: " << nMalloc << "\n";
-            
-            auto addrs = ZeroCFAHeapAddr::allocate(callInst, nMalloc);
-            auto store = getConf()->getStore();
-            auto succ = getConf()->getSucc();
-            auto pred = getConf()->getPred();
-            
-            auto newStore = store->copy();
-            auto newSucc = getConf()->getSucc()->copy();
-            auto newPred = getConf()->getPred()->copy();
-            auto newMeasure = getConf()->getMeasure()->copy();
-            
-            for (auto& addr : *addrs) {
-              newStore->inplaceUpdate(addr, botD);
-            }
-            assert(newStore->size() == (store->size() + addrs->size()));
-            
-            auto destAddr = BindAddr::makeBindAddr(inst, getFp());
-            auto locVal = LocationValue::makeLocationValue(addrs->front());
-            auto locValD = AbsD::makeD(locVal);
-            newStore->inplaceStrongUpdateWhen(destAddr, locValD, [&]() {
-              auto mOpt = newMeasure->lookup(destAddr);
-              if (!mOpt.hasValue()) return true;
-    
-              auto m = mOpt.getValue();
-              return *m <= *AbstractNat::getOneInstance();
-            });
-            
-            //TODO: add some assertions
-            for (unsigned long i = 0; i < addrs->size()-1; i++) {
-              newSucc->inplaceUpdate(addrs->at(i), AbsLoc::makeD(addrs->at(i+1)));
-            }
-            
-            for (unsigned long i = addrs->size()-1; i > 0; i--) {
-              newPred->inplaceUpdate(addrs->at(i), AbsLoc::makeD(addrs->at(i-1)));
-            }
-            
-            for (auto& addr : *addrs) {
-              newMeasure->inplaceUpdate(addr, AbstractNat::getOneInstance());
-            }
-            
-            auto newConf = AbsConf::makeAbsConf(newStore, newSucc, newPred, newMeasure);
-            auto newState = AbsState::makeState(nextStmt, getFp(), newConf, getSp());
-            states->inplaceInsert(newState);
           }
           else {
             auto sizeValD = evalAtom(mallocSize, getFp(), getConf(), *AbsState::getModule());
             auto& sizeValSet = sizeValD->getValueSet();
             errs() << "size number: " << sizeValSet.size() << "\n";
             assert(sizeValSet.size() == 1 && "TODO: handle size multiple value");
+            
             for (auto it = sizeValSet.begin(); it != sizeValSet.end(); it++) {
               if (isa<AnyIntValue>(**it)) {
-                
+                unknownSize = true;
+                nMalloc = 2; // 1, *
               }
               else if (isa<IntValue>(**it)) {
-                //TODO: do what above did
+                unknownSize = false;
+                nMalloc = dyn_cast<IntValue>(&**it)->getValue().getSExtValue();
               }
               else {
                 assert(false && "Not a integer");
               }
             }
-            
           }
+  
+          if (unknownSize) { assert(nMalloc == 2); }
+          else { assert(nMalloc > 0); }
+          
+          auto addrs = ZeroCFAHeapAddr::allocate(callInst, nMalloc + 1); // with an additional T
+          auto store = getConf()->getStore();
+          auto succ = getConf()->getSucc();
+          auto pred = getConf()->getPred();
+  
+          auto newStore = store->copy();
+          auto newSucc = getConf()->getSucc()->copy();
+          auto newPred = getConf()->getPred()->copy();
+          auto newMeasure = getConf()->getMeasure()->copy();
+  
+          for (auto& addr : *addrs) {
+            newStore->inplaceUpdate(addr, botD);
+          }
+          assert(newStore->size() == (store->size() + addrs->size()));
+  
+          auto destAddr = BindAddr::makeBindAddr(inst, getFp());
+          auto locVal = LocationValue::makeLocationValue(addrs->front());
+          auto locValD = AbsD::makeD(locVal);
+          auto one = AbstractNat::getOneInstance();
+          newStore->inplaceStrongUpdateWhen(destAddr, locValD, [&]() {
+            auto mOpt = newMeasure->lookup(destAddr);
+            if (!mOpt.hasValue() || *mOpt.getValue() <= *one) {
+              // If the measure is Zero or One, we perform a strong update to one
+              newMeasure->inplaceStrongUpdate(destAddr, one);
+              return true;
+            }
+            else {
+              // If the measure if Inf, we need to join them
+              newMeasure->inplaceUpdate(destAddr, one);
+              return false;
+            }
+          });
+          
+          for (unsigned long i = 0; i < addrs->size()-1; i++) {
+            if (unknownSize) {
+              assert(i <= 1);
+              auto d = AbsLoc::makeMtD();
+              d->inplaceAdd(addrs->at(1));
+              d->inplaceAdd(addrs->at(2));
+              // d = { a_*, a_T }
+              newSucc->inplaceUpdate(addrs->at(i), d);
+            }
+            else {
+              newSucc->inplaceUpdate(addrs->at(i), AbsLoc::makeD(addrs->at(i+1)));
+            }
+          }
+  
+          for (unsigned long i = addrs->size()-1; i > 0; i--) {
+            if (unknownSize) {
+              assert(i > 1);
+              auto d = AbsLoc::makeMtD();
+              d->inplaceAdd(addrs->at(0));
+              d->inplaceAdd(addrs->at(1));
+              // d = { a_1, a_* }
+              newPred->inplaceUpdate(addrs->at(i), d);
+            }
+            newPred->inplaceUpdate(addrs->at(i), AbsLoc::makeD(addrs->at(i-1)));
+          }
+          
+          for (unsigned long i = 0; i < addrs->size(); i++) {
+            if (unknownSize && i == 1) {
+              // a_* can be pointed to any number of values
+              newMeasure->inplaceUpdate(addrs->at(i), AbstractNat::getInfInstance());
+            }
+            else {
+              newMeasure->inplaceUpdate(addrs->at(i), one);
+            }
+          }
+  
+          auto newConf = AbsConf::makeAbsConf(newStore, newSucc, newPred, newMeasure);
+          auto newState = AbsState::makeState(nextStmt, getFp(), newConf, getSp());
+          states->inplaceInsert(newState);
         }
         else if (fname == "free") {
+          auto v = callInst->getOperand(0);
+          auto vAddr = BindAddr::makeBindAddr(v, getFp());
+          auto locValOpt = getConf()->getStore()->lookup(vAddr);
           
+          auto newConf = getConf()->copy();
+          if (locValOpt.hasValue()) {
+            auto locVals = locValOpt.getValue();
+            auto& locValSet = locVals->getValueSet();
+            auto one = AbstractNat::getOneInstance();
+            for (auto& v : locValSet) {
+              assert(isa<LocationValue>(&*v));
+              //auto loc =std::static_pointer_cast<LocationValue>(v);
+              auto loc = dyn_cast<LocationValue>(&*v)->getLocation();
+              newConf->inplaceRemoveWhen(loc, [&]() {
+                auto m = getConf()->getMeasure()->lookup(loc);
+                if (!m.hasValue()) return true;
+                if (*m.getValue() <= *one) return true;
+                return false;
+              });
+            }
+          }
+          else {
+            assert(false && "Invalid pointer");
+          }
+          
+          auto newState = AbsState::makeState(nextStmt, getFp(), newConf, getSp());
+          states->inplaceInsert(newState);
         }
         else {
           auto entry = getEntry(*function);
@@ -662,6 +768,7 @@ namespace AbstractAAM {
           
           auto ds_it = ds.begin();
           auto fa_it = formalArgs.begin();
+          auto one = AbstractNat::getOneInstance();
           for (; ds_it != ds.end() &&
                  fa_it != formalArgs.end();
                  ds_it++, fa_it++) {
@@ -669,15 +776,16 @@ namespace AbstractAAM {
             //TODO: upadte meausre of local variables
             newStore->inplaceStrongUpdateWhen(addr, *ds_it, [&]() {
               auto mOpt = newMeasure->lookup(addr);
-              if (!mOpt.hasValue()) {
+              if (!mOpt.hasValue() || *mOpt.getValue() <= *one) {
+                // addr -> Zero
+                newMeasure->inplaceStrongUpdate(addr, one);
                 return true;
               }
-              
-              auto m = mOpt.getValue();
-              return *m <= *AbstractNat::getOneInstance();
+              else {
+                newMeasure->inplaceUpdate(addr, one);
+                return false;
+              }
             });
-            //TODO:Applying binding
-            newMeasure->inplaceUpdate(addr, AbstractNat::getOneInstance());
           }
   
           auto newConf = AbsConf::makeAbsConf(newStore,

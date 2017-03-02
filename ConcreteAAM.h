@@ -18,14 +18,6 @@
 namespace ConcreteAAM {
   using namespace AAM;
   
-  #define MIN_ALLOC 4;
-  
-  typedef uint8_t RemoveOption;
-  const RemoveOption RM_ALL   = 0xFF;
-  const RemoveOption RM_STORE = 0x01;
-  const RemoveOption RM_SUCC  = 0x02;
-  const RemoveOption RM_PRED  = 0x04;
-  
   class ConcreteHeapAddr : public HeapAddr {
   public:
     typedef std::shared_ptr<ConcreteHeapAddr> ConcreteHeapAddrPtrType;
@@ -178,20 +170,20 @@ namespace ConcreteAAM {
       return newConf;
     }
     
-    void inplaceRemove(ConcreteStore::Key key, RemoveOption opt = ConcreteAAM::RM_ALL) {
-      if (opt & ConcreteAAM::RM_STORE) {
+    void inplaceRemove(ConcreteStore::Key key, RemoveOption opt = RM_ALL) {
+      if (opt & RM_STORE) {
         errs() << "Remove ";
         key->print();
         errs() <<" from store\n";
         this->getStore()->inplaceRemove(key);
       }
-      if (opt & ConcreteAAM::RM_SUCC) {
+      if (opt & RM_SUCC) {
         errs() << "Remove ";
         key->print();
         errs() << " from succ\n";
         this->getSucc()->inplaceRemove(key);
       }
-      if (opt & ConcreteAAM::RM_PRED) {
+      if (opt & RM_PRED) {
         errs() << "Remove ";
         key->print();
         errs() << " from pred\n";
