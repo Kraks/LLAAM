@@ -6,7 +6,7 @@
 #ifndef LLVM_ABSTRACTAAM_H
 #define LLVM_ABSTRACTAAM_H
 
-// TODO: addrsOf, evalAtom
+// TODO: addrsOf
 
 namespace AbstractAAM {
   using namespace AAM;
@@ -480,6 +480,11 @@ namespace AbstractAAM {
                                  std::shared_ptr<AbsConf> conf,
                                  Module& M);
   
+  std::shared_ptr<AbsLoc> addrsOf(Value* lhs,
+                                  std::shared_ptr<FrameAddr> fp,
+                                  std::shared_ptr<AbsConf> conf,
+                                  Module& M);
+  
   class AbsState;
   
   typedef PSet<AbsState> StateSet;
@@ -810,7 +815,11 @@ namespace AbstractAAM {
         }
       }
       else if (isa<LoadInst>(inst)) {
-      
+        LoadInst* loadInst = dyn_cast<LoadInst>(inst);
+        auto destAddr = BindAddr::makeBindAddr(loadInst, getFp());
+        
+        Value* op0 = loadInst->getOperand(0);
+        
       }
       else if (isa<StoreInst>(inst)) {
       

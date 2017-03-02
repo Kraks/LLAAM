@@ -28,6 +28,50 @@ namespace AbstractAAM {
     return value;
   }
   
+  std::shared_ptr<AbsLoc> addrsOf(Value* lhs,
+                                  std::shared_ptr<FrameAddr> fp,
+                                  std::shared_ptr<AbsConf> conf,
+                                  Module& M) {
+    Type* lhsType = lhs->getType();
+    std::string var = lhs->getName();
+    auto d = AbsLoc::makeMtD();
+    
+    if (lhsType->isIntegerTy()) {
+      auto addr = BindAddr::makeBindAddr(lhs, fp);
+      d->inplaceAdd(addr);
+    }
+    else if (lhsType->isPointerTy()) {
+      if (M.getGlobalVariable(var, true)) {
+        auto addr = BindAddr::makeBindAddr(lhs, ZeroCFAStackAddr::initFp());
+        d->inplaceAdd(addr);
+      }
+      else {
+        auto store = conf->getStore();
+        auto fromAddr = BindAddr::makeBindAddr(lhs, fp);
+        auto result = store->lookup(fromAddr);
+        if (result.hasValue()) {
+          auto vals = result.getValue();
+          assert(vals->template verify<LocationValue>());
+          for (auto& v : vals->getValueSet()) {
+            auto loc = dyn_cast<LocationValue>(&*v)->getLocation();
+            d->inplaceAdd(loc);
+          }
+        }
+        else {
+          assert(false && "Unbound variable");
+          //TODO:
+        }
+      }
+    }
+    else if (lhsType->isAggregateType()) {
+      assert(false && "TODO: lhs is an aggregate type");
+    }
+    else {
+      assert(false && "TODO");
+    }
+    return d;
+  }
+  
   std::shared_ptr<AbsMeasure> getInitMeasure(Module& M) {
     std::shared_ptr<AbsMeasure> measure = std::make_shared<AbsMeasure>();
     auto initFp = ZeroCFAStackAddr::initFp(&M);
