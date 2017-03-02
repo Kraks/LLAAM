@@ -25,15 +25,15 @@ namespace AbstractAAM {
       assert(isa<AllocaInst>(val));
     }
     
-    static void setInitFunc(Function* f) {
-      assert(f != nullptr);
-      initFunc = f;
+    static ZeroCFAStackAddrPtrType initFp(Module* M) {
+      if (initFunc == nullptr) {
+        initFunc = M->getFunction("main");
+      }
+      return initFp();
     }
     
     static ZeroCFAStackAddrPtrType initFp() {
-      assert(initFunc != nullptr);
-      static auto fp = make(initFunc);
-      return fp;
+      return make(initFunc);
     }
     
     static bool classof(const Location* loc) {
@@ -104,11 +104,11 @@ namespace AbstractAAM {
   public:
     typedef std::shared_ptr<ZeroCFAHeapAddr> ZeroCFAHeapAddrPtrType;
     
-    ZeroCFAHeapAddr(Instruction* inst, size_t offset) : inst(inst), offset(offset), HeapAddr(KZeroCFAHeapAddr) {
+    ZeroCFAHeapAddr(Value* inst, size_t offset) : val(inst), offset(offset), HeapAddr(KZeroCFAHeapAddr) {
       assert(isa<CallInst>(inst));
     }
     
-    static ZeroCFAHeapAddrPtrType make(Instruction* inst, size_t offset) {
+    static ZeroCFAHeapAddrPtrType make(Value* inst, size_t offset) {
       auto a = std::make_shared<ZeroCFAHeapAddr>(inst, offset);
       return a;
     }
@@ -130,13 +130,13 @@ namespace AbstractAAM {
       if (!isa<ZeroCFAHeapAddr>(&that))
         return false;
       auto* newThat = dyn_cast<ZeroCFAHeapAddr>(&that);
-      return this->inst == newThat->inst &&
+      return this->val == newThat->val &&
              this->offset == newThat->offset;
     }
     
     virtual size_t hashValue() const override {
       size_t seed = 0;
-      seed = hash_combine(seed, hash_value(inst));
+      seed = hash_combine(seed, hash_value(val));
       seed = hash_combine(seed, hash_value(offset));
       seed = hash_combine(seed, hash_value("ZeroCFAHeapAddr"));
       return seed;
@@ -144,12 +144,12 @@ namespace AbstractAAM {
   
     virtual void print() const override {
       errs() << "0CFAHeapAddr[";
-      inst->print(errs());
+      val->print(errs());
       errs() << "," << offset << "]";
     }
 
   private:
-    Instruction* inst;
+    Value* val;
     size_t offset;
   };
   
@@ -431,6 +431,7 @@ namespace AbstractAAM {
   };
   
   std::shared_ptr<AbsStore> getInitStore(Module& M);
+  std::shared_ptr<AbsMeasure> getInitMeasure(Module& M);
   std::shared_ptr<AbsConf> getInitConf(Module& M);
   
   std::shared_ptr<AbsD> evalAtom(Value* val,
@@ -562,7 +563,76 @@ namespace AbstractAAM {
         auto& formalArgs = function->getArgumentList();
         
         if (fname == "malloc") {
+          auto mallocSize = callInst->getOperand(0);
+          auto bot = BotValue::getInstance();
+          auto botD = AbsD::makeD(bot);
           
+          if (ConstantInt* mallocSizeCI = dyn_cast<ConstantInt>(mallocSize)) {
+            // Malloc a size of constant int
+            int64_t nMalloc = mallocSizeCI->getSExtValue();
+            errs() << "malloc size: " << nMalloc << "\n";
+            
+            auto addrs = ZeroCFAHeapAddr::allocate(callInst, nMalloc);
+            auto store = getConf()->getStore();
+            auto succ = getConf()->getSucc();
+            auto pred = getConf()->getPred();
+            
+            auto newStore = store->copy();
+            auto newSucc = getConf()->getSucc()->copy();
+            auto newPred = getConf()->getPred()->copy();
+            auto newMeasure = getConf()->getMeasure()->copy();
+            
+            for (auto& addr : *addrs) {
+              newStore->inplaceUpdate(addr, botD);
+            }
+            assert(newStore->size() == (store->size() + addrs->size()));
+            
+            auto destAddr = BindAddr::makeBindAddr(inst, getFp());
+            auto locVal = LocationValue::makeLocationValue(addrs->front());
+            auto locValD = AbsD::makeD(locVal);
+            newStore->inplaceStrongUpdateWhen(destAddr, locValD, [&]() {
+              auto mOpt = newMeasure->lookup(destAddr);
+              if (!mOpt.hasValue()) return true;
+    
+              auto m = mOpt.getValue();
+              return *m <= *AbstractNat::getOneInstance();
+            });
+            
+            //TODO: add some assertions
+            for (unsigned long i = 0; i < addrs->size()-1; i++) {
+              newSucc->inplaceUpdate(addrs->at(i), AbsLoc::makeD(addrs->at(i+1)));
+            }
+            
+            for (unsigned long i = addrs->size()-1; i > 0; i--) {
+              newPred->inplaceUpdate(addrs->at(i), AbsLoc::makeD(addrs->at(i-1)));
+            }
+            
+            for (auto& addr : *addrs) {
+              newMeasure->inplaceUpdate(addr, AbstractNat::getOneInstance());
+            }
+            
+            auto newConf = AbsConf::makeAbsConf(newStore, newSucc, newPred, newMeasure);
+            auto newState = AbsState::makeState(nextStmt, getFp(), newConf, getSp());
+            states->inplaceInsert(newState);
+          }
+          else {
+            auto sizeValD = evalAtom(mallocSize, getFp(), getConf(), *AbsState::getModule());
+            auto& sizeValSet = sizeValD->getValueSet();
+            errs() << "size number: " << sizeValSet.size() << "\n";
+            assert(sizeValSet.size() == 1 && "TODO: handle size multiple value");
+            for (auto it = sizeValSet.begin(); it != sizeValSet.end(); it++) {
+              if (isa<AnyIntValue>(**it)) {
+                
+              }
+              else if (isa<IntValue>(**it)) {
+                //TODO: do what above did
+              }
+              else {
+                assert(false && "Not a integer");
+              }
+            }
+            
+          }
         }
         else if (fname == "free") {
           
@@ -599,11 +669,14 @@ namespace AbstractAAM {
             //TODO: upadte meausre of local variables
             newStore->inplaceStrongUpdateWhen(addr, *ds_it, [&]() {
               auto mOpt = newMeasure->lookup(addr);
-              if (!mOpt.hasValue()) return true;
+              if (!mOpt.hasValue()) {
+                return true;
+              }
               
               auto m = mOpt.getValue();
               return *m <= *AbstractNat::getOneInstance();
             });
+            //TODO:Applying binding
             newMeasure->inplaceUpdate(addr, AbstractNat::getOneInstance());
           }
   
@@ -684,8 +757,7 @@ namespace AbstractAAM {
       Instruction* entry = getEntry(*main);
       std::shared_ptr<Stmt> initStmt = std::make_shared<Stmt>(entry);
       
-      ZeroCFAStackAddr::setInitFunc(main);
-      auto initFp = ZeroCFAStackAddr::initFp();
+      auto initFp = ZeroCFAStackAddr::initFp(&M);
       
       std::shared_ptr<AbsState> initState = makeState(initStmt, initFp, initConf, initFp);
       return initState;

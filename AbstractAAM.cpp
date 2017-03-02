@@ -28,9 +28,39 @@ namespace AbstractAAM {
     return value;
   }
   
+  std::shared_ptr<AbsMeasure> getInitMeasure(Module& M) {
+    std::shared_ptr<AbsMeasure> measure = std::make_shared<AbsMeasure>();
+    auto initFp = ZeroCFAStackAddr::initFp(&M);
+    Function* main = M.getFunction("main");
+    auto& mainArgs = main->getArgumentList();
+    
+    //Put argc into measure
+    auto arg_it = mainArgs.begin();
+    auto argcBindAddr = BindAddr::makeBindAddr(&*arg_it, initFp);
+    auto argcMeasure = AbstractNat::getOneInstance();
+    measure->inplaceUpdate(argcBindAddr, argcMeasure);
+    //TODO: argv
+    
+    return measure;
+  }
+  
   std::shared_ptr<AbsStore> getInitStore(Module& M) {
     std::shared_ptr<AbsStore> store = std::make_shared<AbsStore>();
-    auto initFp = ZeroCFAStackAddr::initFp();
+    auto initFp = ZeroCFAStackAddr::initFp(&M);
+    Function* main = M.getFunction("main");
+    auto& mainArgs = main->getArgumentList();
+    //Put argc and argv into store
+    auto arg_it = mainArgs.begin();
+    auto argcBindAddr = BindAddr::makeBindAddr(&*arg_it, initFp);
+    auto argcValue = AbsD::makeD(AnyIntValue::getInstance());
+    store->inplaceStrongUpdate(argcBindAddr, argcValue);
+    
+    arg_it++;
+    //TODO: argv
+    auto argvBindAddr = BindAddr::makeBindAddr(&*arg_it, initFp);
+    auto argvValue = LocationValue::makeLocationValue(ZeroCFAHeapAddr::make(&*arg_it, 0));
+    store->inplaceUpdate(argvBindAddr, AbsD::makeD(argvValue));
+    
     auto& funcs = M.getFunctionList();
     for (auto& f : funcs) {
       //errs() << f.getName() << "\n";
@@ -40,7 +70,8 @@ namespace AbstractAAM {
       store->inplaceUpdate(b, d);
     }
   
-    assert(store->size() == funcs.size());
+    assert(store->size() == funcs.size() + 1);
+    
     auto& globs = M.getGlobalList();
     for (auto& g : globs) {
       // NOTE: By using `getUniqueInteger()` we assume Int is the only primitive type
@@ -58,7 +89,7 @@ namespace AbstractAAM {
       }
     }
   
-    assert(store->size() == (funcs.size() + globs.size()));
+    assert(store->size() == (funcs.size() + globs.size() + 1));
     return store;
   }
   
@@ -66,7 +97,7 @@ namespace AbstractAAM {
     std::shared_ptr<AbsStore> store = getInitStore(M);
     std::shared_ptr<AbsSucc> succ = std::make_shared<AbsSucc>();
     std::shared_ptr<AbsPred> pred = std::make_shared<AbsPred>();
-    std::shared_ptr<AbsMeasure> measure = std::make_shared<AbsMeasure>();
+    std::shared_ptr<AbsMeasure> measure = getInitMeasure(M);
     std::shared_ptr<AbsConf> conf = AbsConf::makeAbsConf(store, succ, pred, measure);
     return conf;
   }
