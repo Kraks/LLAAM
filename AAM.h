@@ -17,6 +17,7 @@
 #include <memory>
 #include <ostream>
 #include <algorithm>
+#include <functional>
 #include <unordered_set>
 #include <unordered_map>
 
@@ -657,7 +658,7 @@ namespace AAM {
       return m.size();
     }
     
-    std::shared_ptr<Store<K,V,Less,Updater>> copy() {
+    virtual std::shared_ptr<Store<K,V,Less,Updater>> copy() {
       auto newMap = m;
       auto newStore = std::make_shared<Store<K,V,Less,Updater>>(newMap);
       return newStore;
@@ -705,6 +706,17 @@ namespace AAM {
     void inplaceStrongUpdate(Store<K,V,Less,Updater>::Key key, Store<K,V,Less,Updater>::Val val) {
       m[key] = val;
     }
+    
+    void inplaceStrongUpdateWhen(Store<K,V,Less,Updater>::Key key,
+                                 Store<K,V,Less,Updater>::Val val,
+                                 std::function<bool()> pred) {
+      if (pred()) {
+        inplaceStrongUpdate(key, val);
+      }
+      else {
+        inplaceUpdate(key, val);
+      }
+    }
    
     void inplaceRemove(Store<K,V,Less,Updater>::Key key) {
       m.erase(key);
@@ -741,8 +753,8 @@ namespace AAM {
         errs() << "\n";
       }
     }
-  
-  private:
+
+  protected:
     StoreMap m;
     std::string name;
   };

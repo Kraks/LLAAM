@@ -247,7 +247,7 @@ namespace AbstractAAM {
   
   class AbstractNat {
   public:
-    enum AbstractNatEnum { Zero, One, Inf };
+    enum AbstractNatEnum { Zero = 0, One = 1, Inf = 2 };
     typedef std::shared_ptr<AbstractNat> AbstractNatPtrType;
   
     AbstractNat(AbstractNatEnum e) : e(e) {};
@@ -271,6 +271,12 @@ namespace AbstractAAM {
   
     inline bool operator==(AbstractNat& that) {
       return this->e == that.e;
+    }
+    
+    inline bool operator<=(AbstractNat& that) {
+      auto thisE = this->e;
+      auto thatE = that.e;
+      return thisE <= thatE;
     }
     
     AbstractNatPtrType plus(AbstractNatPtrType x) {
@@ -465,6 +471,9 @@ namespace AbstractAAM {
       errs() << "op num: " << opNum << "\n";
       
       if (isa<ReturnInst>(inst)) {
+        /**
+         * For a return instruction,
+         */
         ReturnInst* returnInst = dyn_cast<ReturnInst>(inst);
         auto fp = this->getFp();
         
@@ -582,14 +591,22 @@ namespace AbstractAAM {
                  fa_it != formalArgs.end();
                  ds_it++, fa_it++) {
             auto addr = BindAddr::makeBindAddr(&*fa_it, newFP);
+            //TODO: upadte meausre of local variables
             //TODO: strong update or join depends on measure
-            newStore->inplaceUpdate(addr, *ds_it);
+            //newStore->inplaceUpdate(addr, *ds_it);
+            newStore->inplaceStrongUpdateWhen(addr, *ds_it, [&]() {
+              auto mOpt = newMeasure->lookup(addr);
+              if (!mOpt.hasValue()) return true;
+              
+              auto m = mOpt.getValue();
+              return *m <= *AbstractNat::getOneInstance();
+            });
             newMeasure->inplaceUpdate(addr, AbstractNat::getOneInstance());
           }
   
           auto newConf = AbsConf::makeAbsConf(newStore,
                                               getConf()->getSucc(),
-                                              getConf()->getPred(),
+                                               getConf()->getPred(),
                                               newMeasure);
           auto newState = AbsState::makeState(entryStmt, newFP, newConf, newSP);
           states->inplaceInsert(newState);
