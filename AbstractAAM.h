@@ -1383,10 +1383,49 @@ namespace AbstractAAM {
                                             newMeasure);
         auto newState = AbsState::makeState(nextStmt, getFp(), newConf, getSp());
         states->inplaceInsert(newState);
-        
       }
       else if (isa<TruncInst>(inst)) {
-        
+        SExtInst* sExtInst = dyn_cast<SExtInst>(inst);
+        Value* op0 = sExtInst->getOperand(0);
+  
+        Type* destType = sExtInst->getDestTy();
+        auto vals = evalAtom(op0, getFp(), getConf(), *getModule());
+        assert(vals->template verify<AnyIntValue>());
+  
+        auto destVals = AbsD::makeMtD();
+        for (auto& v : vals->getValueSet()) {
+          if (IntValue* iv = dyn_cast<IntValue>(&*v)) {
+            APInt apInt = iv->getValue().trunc(destType->getIntegerBitWidth());
+            auto newV = IntValue::makeInt(apInt);
+            destVals->inplaceAdd(newV);
+          }
+          else if (AnyIntValue* ai = dyn_cast<AnyIntValue>(&*v)) {
+            destVals->inplaceAdd(AnyIntValue::getInstance());
+          }
+          else {
+            assert(false && "Not an integer");
+          }
+        }
+  
+        auto destAddr = BindAddr::makeBindAddr(sExtInst, getFp());
+        auto newStore = getConf()->getStore()->copy();
+        auto newMeasure = getConf()->getMeasure()->copy();
+        newStore->inplaceStrongUpdateWhen(destAddr, destVals, [&]() {
+          auto mOpt = getConf()->getMeasure()->lookup(destAddr);
+          if (!mOpt.hasValue() || *mOpt.getValue() <= *one) {
+            newMeasure->inplaceStrongUpdate(destAddr, destVals->getMeasure());
+            return true;
+          }
+          newMeasure->inplaceUpdate(destAddr, destVals->getMeasure());
+          return false;
+        });
+  
+        auto newConf = AbsConf::makeAbsConf(newStore,
+                                            getConf()->getSucc(),
+                                            getConf()->getPred(),
+                                            newMeasure);
+        auto newState = AbsState::makeState(nextStmt, getFp(), newConf, getSp());
+        states->inplaceInsert(newState);
       }
       else if (isa<PHINode>(inst)) {
         
