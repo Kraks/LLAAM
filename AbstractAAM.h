@@ -269,6 +269,14 @@ namespace AbstractAAM {
       return true;
     }
     
+    template<class A>
+    bool has() {
+      for (auto it = set.begin(); it != set.end(); it++) {
+        if (isa<A>(**it)) return true;
+      }
+      return false;
+    }
+    
     static DPtr makeMtD() {
       auto d = std::make_shared<D<T,Less>>();
       return d;
@@ -494,6 +502,10 @@ namespace AbstractAAM {
                                   std::shared_ptr<AbsConf> conf,
                                   Module& M);
   
+  std::shared_ptr<AbsD> primOp(unsigned op,
+                               std::shared_ptr<AbsD> lhs,
+                               std::shared_ptr<AbsD> rhs);
+  
   class AbsState;
   
   typedef PSet<AbsState> StateSet;
@@ -656,13 +668,13 @@ namespace AbstractAAM {
             assert(sizeValSet.size() == 1 && "TODO: handle size multiple value");
             
             for (auto it = sizeValSet.begin(); it != sizeValSet.end(); it++) {
-              if (isa<AnyIntValue>(**it)) {
-                unknownSize = true;
-                nMalloc = 2; // 1, *
-              }
-              else if (isa<IntValue>(**it)) {
+              if (isa<IntValue>(**it)) {
                 unknownSize = false;
                 nMalloc = dyn_cast<IntValue>(&**it)->getValue().getSExtValue();
+              }
+              else if (isa<AnyIntValue>(**it)) {
+                unknownSize = true;
+                nMalloc = 2; // 1, *
               }
               else {
                 assert(false && "Not a integer");
@@ -1013,12 +1025,62 @@ namespace AbstractAAM {
         states->inplaceInsert(newState);
       }
       else if (isa<GetElementPtrInst>(inst)) {
+        GetElementPtrInst* ptrInst = dyn_cast<GetElementPtrInst>(inst);
         
+        auto srcObj = ptrInst->getOperand(0);
+        auto srcAddr = BindAddr::makeBindAddr(srcObj, getFp());
+        auto srcValsOpt = getConf()->getStore()->lookup(srcAddr);
+        assert(srcValsOpt.hasValue());
+        auto srcVals = srcValsOpt.getValue();
+        assert(srcVals->template verify<LocationValue>());
+        //TODO:
       }
       else if (Instruction::Add == inst->getOpcode() ||
                Instruction::Sub == inst->getOpcode() ||
                Instruction::Mul == inst->getOpcode()) {
+        Value* lhs = inst->getOperand(0);
+        Value* rhs = inst->getOperand(1);
         
+        auto lhsVals = AbsD::makeMtD();
+        auto rhsVals = AbsD::makeMtD();
+        
+        if (ConstantInt* lhsConst = dyn_cast<ConstantInt>(lhs)) {
+          lhsVals->inplaceAdd(IntValue::makeInt(lhsConst->getValue()));
+        }
+        else {
+          auto lhsAddr = BindAddr::makeBindAddr(lhs, getFp());
+          lhsVals = getConf()->getStore()->lookup(lhsAddr).getValue();
+        }
+        
+        if (ConstantInt* rhsConst = dyn_cast<ConstantInt>(rhs)) {
+          rhsVals->inplaceAdd(IntValue::makeInt(rhsConst->getValue()));
+        }
+        else {
+          auto rhsAddr = BindAddr::makeBindAddr(rhs, getFp());
+          rhsVals = getConf()->getStore()->lookup(rhsAddr).getValue();
+        }
+        
+        auto resVals = primOp(inst->getOpcode(), lhsVals, rhsVals);
+        auto destAddr = BindAddr::makeBindAddr(inst, getFp());
+        
+        auto newStore = getConf()->getStore()->copy();
+        auto newMeasure = getConf()->getMeasure()->copy();
+        newStore->inplaceStrongUpdateWhen(destAddr, resVals, [&]() {
+          auto mOpt = getConf()->getMeasure()->lookup(destAddr);
+          if (!mOpt.hasValue() || *mOpt.getValue() <= *one) {
+            newMeasure->inplaceStrongUpdate(destAddr, resVals->getMeasure());
+            return true;
+          }
+          newMeasure->inplaceUpdate(destAddr, resVals->getMeasure());
+          return false;
+        });
+  
+        auto newConf = AbsConf::makeAbsConf(newStore,
+                                            getConf()->getSucc(),
+                                            getConf()->getPred(),
+                                            newMeasure);
+        auto newState = AbsState::makeState(nextStmt, getFp(), newConf, getSp());
+        states->inplaceInsert(newState);
       }
       else if (isa<ICmpInst>(inst)) {
       

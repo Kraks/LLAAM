@@ -603,6 +603,7 @@ namespace ConcreteAAM {
           int64_t offset_v = 0;
           uint64_t ty_size = 0;
           if (ConstantInt* offset_ci = dyn_cast<ConstantInt>(offset)) {
+            // The offset are literal constant integers
             offset_v = offset_ci->getValue().getSExtValue();
             if (ty->isPointerTy()) {
               ty = ty->getPointerElementType();
@@ -612,7 +613,7 @@ namespace ConcreteAAM {
             n += (ty_size * offset_v);
           }
           else {
-            //TODO: Now assume all offsets are constant int, need to handle variable
+            //TODO: need to handle variable
           }
           
           if (ty->isArrayTy()) {

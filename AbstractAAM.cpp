@@ -28,6 +28,41 @@ namespace AbstractAAM {
     return value;
   }
   
+  std::shared_ptr<AbsD> primOp(unsigned op,
+                               std::shared_ptr<AbsD> lhs,
+                               std::shared_ptr<AbsD> rhs) {
+    assert(lhs->template verify<AnyIntValue>());
+    assert(lhs->template verify<AnyIntValue>());
+    
+    auto results = AbsD::makeMtD();
+    auto& lhsValues = lhs->getValueSet();
+    auto& rhsValues = rhs->getValueSet();
+    auto anyInt = AnyIntValue::getInstance();
+    for (auto lit = lhsValues.begin(); lit != lhsValues.end(); lit++) {
+      for (auto rit = rhsValues.begin(); rit != rhsValues.end(); rit++) {
+        if (isa<IntValue>(**lit) && isa<IntValue>(**rit)) {
+          auto lv = dyn_cast<IntValue>(&**lit)->getValue();
+          auto rv = dyn_cast<IntValue>(&**rit)->getValue();
+          APInt apInt;
+          if (Instruction::Add == op) {
+            apInt = lv + rv;
+          }
+          if (Instruction::Sub == op) {
+            apInt = lv - rv;
+          }
+          if (Instruction::Mul == op) {
+            apInt = lv * rv;
+          }
+          results->inplaceAdd(IntValue::makeInt(apInt));
+        }
+        else {
+          results->inplaceAdd(anyInt);
+        }
+      }
+    }
+    return results;
+  }
+  
   std::shared_ptr<AbsLoc> addrsOf(Value* lhs,
                                   std::shared_ptr<FrameAddr> fp,
                                   std::shared_ptr<AbsConf> conf,
