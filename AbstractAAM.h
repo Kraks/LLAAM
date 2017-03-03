@@ -1223,7 +1223,51 @@ namespace AbstractAAM {
         states->inplaceInsert(newState);
       }
       else if (isa<BranchInst>(inst)) {
-        
+        BranchInst* branchInst = dyn_cast<BranchInst>(inst);
+        if (opNum == 1) {
+          errs() << "Unconditional branch\n";
+          BasicBlock* targetBlock = branchInst->getSuccessor(0);
+          Instruction* nextSemanticInst = getEntry(*targetBlock);
+          auto nextSemanticStmt = Stmt::makeStmt(nextSemanticInst, branchInst);
+          auto newState = AbsState::makeState(nextSemanticStmt, getFp(), getConf(), getSp());
+          states->inplaceInsert(newState);
+        }
+        else if (opNum == 3) {
+          errs() << "Conditional branch\n";
+          BasicBlock* thnBlock = branchInst->getSuccessor(0);
+          Instruction* thnEntryInst = getEntry(*thnBlock);
+          auto thnEntryStmt = Stmt::makeStmt(thnEntryInst, branchInst);
+          auto thnState = AbsState::makeState(thnEntryStmt, getFp(), getConf(), getSp());
+          
+          BasicBlock* elsBlock = branchInst->getSuccessor(1);
+          Instruction* elsEntryBlock = getEntry(*elsBlock);
+          auto elsEntryStmt = Stmt::makeStmt(elsEntryBlock, branchInst);
+          auto elsState = AbsState::makeState(elsEntryStmt, getFp(), getConf(), getSp());
+  
+          Value* cnd = branchInst->getOperand(0);
+          auto cndVals = evalAtom(cnd, getFp(), getConf(), *getModule());
+          assert(cndVals->template verify<AnyIntValue>());
+          for (auto& v : cndVals->getValueSet()) {
+            if (IntValue* i = dyn_cast<IntValue>(&*v)) {
+              if (i->getValue() == ConstantInt::getFalse(C)->getValue()) {
+                states->inplaceInsert(elsState);
+              }
+              else {
+                states->inplaceInsert(thnState);
+              }
+            }
+            else if (AnyIntValue* ai = dyn_cast<AnyIntValue>(&*v)) {
+              states->inplaceInsert(thnState);
+              states->inplaceInsert(elsState);
+            }
+            else {
+              assert(false && "Not an integer");
+            }
+          }
+        }
+        else {
+          assert(false && "Number of operands is greater than 3");
+        }
       }
       else if (isa<BitCastInst>(inst)) {
         
