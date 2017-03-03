@@ -928,10 +928,89 @@ namespace AbstractAAM {
                                             newMeasure);
         auto newState = AbsState::makeState(nextStmt, getFp(), newConf, getSp());
         states->inplaceInsert(newState);
-      
       }
       else if (isa<AllocaInst>(inst)) {
-      
+        AllocaInst* allocaInst = dyn_cast<AllocaInst>(inst);
+        Type* allocaType = allocaInst->getAllocatedType();
+        
+        uint64_t totalByteSize = AbsState::getModule()->getDataLayout().getTypeAllocSize(allocaType);
+        assert(totalByteSize > 0);
+        errs() << "total byte size: " << totalByteSize << "\n";
+        uint64_t nAlloc = totalByteSize;
+        uint64_t step = totalByteSize;
+        
+        if (auto* allocaArrayType = dyn_cast<ArrayType>(allocaType)) {
+          Type* eleType = allocaArrayType->getElementType();
+          errs() << "eleType: ";
+          eleType->print(errs());
+          uint64_t eleNum = allocaArrayType->getNumElements();
+          errs() << " num: " << eleNum << "\n";
+  
+          step = AbsState::getModule()->getDataLayout().getTypeAllocSize(eleType);
+          assert(step * eleNum == nAlloc);
+        }
+        else if (auto* allocaStructType = dyn_cast<StructType>(allocaType)) {
+          size_t nEle = allocaStructType->getStructNumElements();
+          errs() << "num ele: " << nEle << "\n";
+        }
+        
+        auto store = getConf()->getStore();
+        auto succ = getConf()->getSucc();
+        auto pred = getConf()->getPred();
+        auto measure = getConf()->getMeasure();
+        
+        auto newStore = store->copy();
+        auto newSucc = succ->copy();
+        auto newPred = pred->copy();
+        auto newMeasure = measure->copy();
+        
+        auto aTop = this->getSp();
+        auto aTopD = AbsLoc::makeD(aTop);
+        auto bot = AbsD::makeD(BotValue::getInstance());
+        auto addrs = ZeroCFAStackAddr::allocate(allocaInst, nAlloc);
+        
+        auto locVal = LocationValue::makeLocationValue(addrs->front());
+        auto locValD = AbsD::makeD(locVal);
+        
+        auto destAddr = BindAddr::makeBindAddr(allocaInst, getFp());
+        newStore->inplaceStrongUpdateWhen(destAddr, locValD, [&]() {
+          auto mOpt = measure->lookup(destAddr);
+          if (!mOpt.hasValue() || *mOpt.getValue() <= *one) {
+            newMeasure->inplaceStrongUpdate(destAddr, locValD->getMeasure());
+            return true;
+          }
+          newMeasure->inplaceUpdate(destAddr, locValD->getMeasure());
+          return false;
+        });
+  
+        for (auto& addr : *addrs) {
+          newStore->inplaceUpdate(addr, bot);
+        }
+        
+        for (unsigned long i = 0; i < addrs->size(); i++) {
+          if (i == addrs->size()-1) {
+            newSucc->inplaceUpdate(addrs->at(i), aTopD);
+          }
+          else {
+            newSucc->inplaceUpdate(addrs->at(i), AbsLoc::makeD(addrs->at(i+1)));
+          }
+        }
+        //TODO: assertion
+        
+        for (unsigned long i = addrs->size()-1; i > 0; i--) {
+          newPred->inplaceUpdate(addrs->at(i), AbsLoc::makeD(addrs->at(i-1)));
+        }
+        newPred->inplaceUpdate(aTop, AbsLoc::makeD(addrs->back()));
+        //TODO: assertion
+        
+        for (unsigned long i = 0; i < addrs->size(); i++) {
+          newMeasure->inplaceUpdate(addrs->at(i), one);
+        }
+        
+        auto newConf = AbsConf::makeAbsConf(newStore, newSucc, newPred, newMeasure);
+        auto newSp = addrs->front();
+        auto newState = AbsState::makeState(nextStmt, getFp(), newConf, newSp);
+        states->inplaceInsert(newState);
       }
       else if (isa<GetElementPtrInst>(inst)) {
         
