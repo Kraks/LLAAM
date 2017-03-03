@@ -1270,7 +1270,33 @@ namespace AbstractAAM {
         }
       }
       else if (isa<BitCastInst>(inst)) {
+        BitCastInst* bitCastInst = dyn_cast<BitCastInst>(inst);
+        Type* destType = bitCastInst->getDestTy();
+        Type* srcType = bitCastInst->getSrcTy();
+        Value* src = bitCastInst->getOperand(0);
         
+        auto locVals = evalAtom(src, getFp(), getConf(), *getModule());
+        assert(locVals->template verify<LocationValue>());
+        
+        auto destAddr = BindAddr::makeBindAddr(bitCastInst, getFp());
+        auto newStore = getConf()->getStore()->copy();
+        auto newMeasure = getConf()->getMeasure()->copy();
+        newStore->inplaceStrongUpdateWhen(destAddr, locVals, [&]() {
+          auto mOpt = getConf()->getMeasure()->lookup(destAddr);
+          if (!mOpt.hasValue() || *mOpt.getValue() <= *one) {
+            newMeasure->inplaceStrongUpdate(destAddr, locVals->getMeasure());
+            return true;
+          }
+          newMeasure->inplaceUpdate(destAddr, locVals->getMeasure());
+          return false;
+        });
+  
+        auto newConf = AbsConf::makeAbsConf(newStore,
+                                            getConf()->getSucc(),
+                                            getConf()->getPred(),
+                                            newMeasure);
+        auto newState = AbsState::makeState(nextStmt, getFp(), newConf, getSp());
+        states->inplaceInsert(newState);
       }
       else if (isa<SExtInst>(inst)) {
         
