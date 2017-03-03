@@ -494,7 +494,7 @@ namespace ConcreteAAM {
             // Function pointer
             //errs() << "op0_ty func: " << op0_ty->isFunctionTy() << "\n";
             Function* f = getModule()->getFunction(op0->getName());
-            assert(f && "can not get function");
+            assert(f && "can not get the function");
             //Function* f = dyn_cast<Function>(op0);
             auto val = FuncValue::makeFuncValue(f);
             newStore->inplaceUpdate(destAddr, val);

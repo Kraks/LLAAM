@@ -153,11 +153,94 @@ namespace AbstractAAM {
     size_t offset;
   };
   
+  class AbstractNat {
+  public:
+    enum AbstractNatEnum { Zero = 0, One = 1, Inf = 2 };
+    typedef std::shared_ptr<AbstractNat> AbstractNatPtrType;
+    
+    AbstractNat(AbstractNatEnum e) : e(e) {};
+    
+    AbstractNatEnum getVal() { return e; }
+    
+    static AbstractNatPtrType getZeroInstance() {
+      static auto z = std::make_shared<AbstractNat>(Zero);
+      return z;
+    }
+    
+    static AbstractNatPtrType getOneInstance() {
+      static auto o = std::make_shared<AbstractNat>(One);
+      return o;
+    }
+    
+    static AbstractNatPtrType getInfInstance() {
+      static auto i = std::make_shared<AbstractNat>(Inf);
+      return i;
+    }
+    
+    inline bool operator==(AbstractNat& that) {
+      return this->e == that.e;
+    }
+    
+    inline bool operator<=(AbstractNat& that) {
+      auto thisE = this->e;
+      auto thatE = that.e;
+      return thisE <= thatE;
+    }
+    
+    AbstractNatPtrType plus(AbstractNatPtrType x) {
+      AbstractNatEnum res = AbstractNat::plus(this->e, x->e);
+      return std::make_shared<AbstractNat>(res);
+    }
+    
+    static AbstractNatEnum plus(AbstractNatEnum a, AbstractNatEnum b) {
+      if (a == Zero) {
+        return b;
+      }
+      if (a == One) {
+        if (b == Zero) {
+          return One;
+        }
+        return Inf;
+      }
+      if (a == Inf) {
+        return Inf;
+      }
+    }
+    
+    static AbstractNatPtrType plus(AbstractNatPtrType a, AbstractNatPtrType b) {
+      AbstractNatEnum res = plus(a->e, b->e);
+      return std::make_shared<AbstractNat>(res);
+    }
+    
+    size_t hashValue() {
+      size_t seed = 0;
+      seed = hash_value(e);
+      return seed;
+    }
+    
+    virtual void print() const {
+      if (e == Zero) {
+        errs() << "0";
+      }
+      else if (e == One) {
+        errs() << "1";
+      }
+      else {
+        errs() << "inf";
+      }
+    }
+  
+  private:
+    AbstractNatEnum e;
+  };
+  
+  
   template<class T, class Less>
   class D {
   public:
     typedef std::shared_ptr<D<T,Less>> DPtr;
     typedef std::shared_ptr<T> ValPtr;
+    
     
     D() {}
     D(std::set<ValPtr, Less> s) : set(s) {}
@@ -250,88 +333,6 @@ namespace AbstractAAM {
     
   private:
     std::set<ValPtr, Less> set;
-  };
-  
-  
-  class AbstractNat {
-  public:
-    enum AbstractNatEnum { Zero = 0, One = 1, Inf = 2 };
-    typedef std::shared_ptr<AbstractNat> AbstractNatPtrType;
-  
-    AbstractNat(AbstractNatEnum e) : e(e) {};
-    
-    AbstractNatEnum getVal() { return e; }
-    
-    static AbstractNatPtrType getZeroInstance() {
-      static auto z = std::make_shared<AbstractNat>(Zero);
-      return z;
-    }
-    
-    static AbstractNatPtrType getOneInstance() {
-      static auto o = std::make_shared<AbstractNat>(One);
-      return o;
-    }
-    
-    static AbstractNatPtrType getInfInstance() {
-      static auto i = std::make_shared<AbstractNat>(Inf);
-      return i;
-    }
-  
-    inline bool operator==(AbstractNat& that) {
-      return this->e == that.e;
-    }
-    
-    inline bool operator<=(AbstractNat& that) {
-      auto thisE = this->e;
-      auto thatE = that.e;
-      return thisE <= thatE;
-    }
-    
-    AbstractNatPtrType plus(AbstractNatPtrType x) {
-      AbstractNatEnum res = AbstractNat::plus(this->e, x->e);
-      return std::make_shared<AbstractNat>(res);
-    }
-    
-    static AbstractNatEnum plus(AbstractNatEnum a, AbstractNatEnum b) {
-      if (a == Zero) {
-        return b;
-      }
-      if (a == One) {
-        if (b == Zero) {
-          return One;
-        }
-        return Inf;
-      }
-      if (a == Inf) {
-        return Inf;
-      }
-    }
-    
-    static AbstractNatPtrType plus(AbstractNatPtrType a, AbstractNatPtrType b) {
-      AbstractNatEnum res = plus(a->e, b->e);
-      return std::make_shared<AbstractNat>(res);
-    }
-    
-    size_t hashValue() {
-      size_t seed = 0;
-      seed = hash_value(e);
-      return seed;
-    }
-    
-    virtual void print() const {
-      if (e == Zero) {
-        errs() << "0";
-      }
-      else if (e == One) {
-        errs() << "1";
-      }
-      else {
-        errs() << "inf";
-      }
-    }
-    
-  private:
-    AbstractNatEnum e;
   };
   
   typedef D<AbstractValue, AbstractValueLess> AbsD;
@@ -522,6 +523,8 @@ namespace AbstractAAM {
       Instruction* nextInst = getSyntacticNextInst(inst);
       auto nextStmt = Stmt::makeStmt(nextInst);
   
+      auto one = AbstractNat::getOneInstance();
+      
       size_t opNum = inst->getNumOperands();
       errs() << "op num: " << opNum << "\n";
       
@@ -556,7 +559,6 @@ namespace AbstractAAM {
           
           auto newStore = this->getConf()->getStore()->copy();
           auto newMeasure = this->getConf()->getMeasure()->copy();
-          auto one = AbstractNat::getOneInstance();
           
           if (opNum > 0) {
             auto ret = returnInst->getOperand(0);
@@ -689,7 +691,6 @@ namespace AbstractAAM {
           auto destAddr = BindAddr::makeBindAddr(inst, getFp());
           auto locVal = LocationValue::makeLocationValue(addrs->front());
           auto locValD = AbsD::makeD(locVal);
-          auto one = AbstractNat::getOneInstance();
           newStore->inplaceStrongUpdateWhen(destAddr, locValD, [&]() {
             auto mOpt = newMeasure->lookup(destAddr);
             if (!mOpt.hasValue() || *mOpt.getValue() <= *one) {
@@ -751,7 +752,6 @@ namespace AbstractAAM {
           if (locValOpt.hasValue()) {
             auto locVals = locValOpt.getValue();
             auto& locValSet = locVals->getValueSet();
-            auto one = AbstractNat::getOneInstance();
             for (auto& v : locValSet) {
               assert(isa<LocationValue>(&*v));
               //auto loc =std::static_pointer_cast<LocationValue>(v);
@@ -796,7 +796,6 @@ namespace AbstractAAM {
           
           auto ds_it = ds.begin();
           auto fa_it = formalArgs.begin();
-          auto one = AbstractNat::getOneInstance();
           for (; ds_it != ds.end() &&
                  fa_it != formalArgs.end();
                  ds_it++, fa_it++) {
@@ -842,7 +841,6 @@ namespace AbstractAAM {
           destVal->inplaceJoin(vals);
         }
         
-        auto one = AbstractNat::getOneInstance();
         auto newStore = getConf()->getStore()->copy();
         auto newMeasure = getConf()->getMeasure()->copy();
         newStore->inplaceStrongUpdateWhen(destAddr, destVal, [&]() {
@@ -863,6 +861,73 @@ namespace AbstractAAM {
         states->inplaceInsert(newState);
       }
       else if (isa<StoreInst>(inst)) {
+        //TODO: test type info and avaliable size
+        StoreInst* storeInst = dyn_cast<StoreInst>(inst);
+        Value* from = storeInst->getOperand(0);
+        Type* fromType = from->getType();
+        Value* dest = storeInst->getOperand(1);
+        Type* destType = dest->getType();
+        
+        auto destAddrs = addrsOf(dest, getFp(), getConf(), *AbsState::getModule());
+        
+        auto newStore = getConf()->getStore()->copy();
+        auto newMeasure = getConf()->getMeasure()->copy();
+        
+        if (fromType->isIntegerTy()) {
+          auto vals = evalAtom(from, getFp(), getConf(), *AbsState::getModule());
+          for (auto& destAddr : destAddrs->getValueSet()) {
+            newStore->inplaceStrongUpdateWhen(destAddr, vals, [&]() {
+              auto mOpt = getConf()->getMeasure()->lookup(destAddr);
+              if (!mOpt.hasValue() || *mOpt.getValue() <= *one) {
+                newMeasure->inplaceStrongUpdate(destAddr, vals->getMeasure());
+                return true;
+              }
+              newMeasure->inplaceUpdate(destAddr, vals->getMeasure());
+              return false;
+            });
+          }
+        }
+        else if (fromType->isPointerTy()) {
+          if (isa<Function>(from)) {
+            // Function pointer
+            Function* f = getModule()->getFunction(from->getName());
+            assert(f && "can not get the function");
+            auto fVal = FuncValue::makeFuncValue(f);
+            auto fD = AbsD::makeD(fVal);
+            //TODO: This assume that functions are first order, so just do a strong update.
+            for (auto& destAddr : destAddrs->getValueSet()) {
+              newStore->inplaceStrongUpdate(destAddr, fD);
+              newMeasure->inplaceStrongUpdate(destAddr, one);
+            }
+          }
+          else {
+            auto fromAddr = BindAddr::makeBindAddr(from, getFp());
+            auto fromValsOpt = getConf()->getStore()->lookup(fromAddr);
+            assert(fromValsOpt.hasValue());
+            auto fromVals = fromValsOpt.getValue();
+            //TODO: Refactor this
+            for (auto& destAddr : destAddrs->getValueSet()) {
+              newStore->inplaceStrongUpdateWhen(destAddr, fromVals, [&]() {
+                auto mOpt = getConf()->getMeasure()->lookup(destAddr);
+                if (!mOpt.hasValue() || *mOpt.getValue() <= *one) {
+                  newMeasure->inplaceStrongUpdate(destAddr, fromVals->getMeasure());
+                  return true;
+                }
+                newMeasure->inplaceUpdate(destAddr, fromVals->getMeasure());
+                return false;
+              });
+            }
+          }
+        }
+        else {
+          assert(false && "TODO: Other types not supported");
+        }
+        auto newConf = AbsConf::makeAbsConf(newStore,
+                                            getConf()->getSucc(),
+                                            getConf()->getPred(),
+                                            newMeasure);
+        auto newState = AbsState::makeState(nextStmt, getFp(), newConf, getSp());
+        states->inplaceInsert(newState);
       
       }
       else if (isa<AllocaInst>(inst)) {
