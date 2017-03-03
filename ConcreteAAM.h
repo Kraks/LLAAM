@@ -594,7 +594,7 @@ namespace ConcreteAAM {
         auto srcVal = srcValOpt.getValue();
         assert(isa<LocationValue>(&*srcVal));
         auto src = dyn_cast<LocationValue>(&*srcVal);
-  
+        
         int64_t n = 0;
         auto ty = srcObj->getType();
         

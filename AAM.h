@@ -135,7 +135,10 @@ namespace AAM {
       //errs() << "a hash: " << a->hashValue() << " b hash: " << b->hashValue() << "\n";
       // TODO: using memory location?
       // TODO: using equality if hash values collided?
-      return a->hashValue() < b->hashValue();
+      auto ha = a->hashValue();
+      auto hb = b->hashValue();
+      if (ha == hb) { assert(false && "Hash values collided"); }
+      return ha < hb;
     }
   };
   

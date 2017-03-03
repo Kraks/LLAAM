@@ -306,6 +306,15 @@ namespace AbstractAAM {
       }
     }
     
+    // TODO: TEST
+    void inplaceRemove(ValPtr val) {
+      set.erase(val);
+    }
+    
+    void inplaceClear() {
+      set.clear();
+    }
+    
     size_t hashValue() {
       size_t seed = 0;
       for (auto& e : set) {
@@ -1028,12 +1037,108 @@ namespace AbstractAAM {
         GetElementPtrInst* ptrInst = dyn_cast<GetElementPtrInst>(inst);
         
         auto srcObj = ptrInst->getOperand(0);
+        auto srcType = srcObj->getType();
+        auto ty = srcType;
+        int64_t n = 0;
+        
+        for (int i = 1; i < opNum; i++) {
+          Value* offset = ptrInst->getOperand(i);
+          int64_t offset_v = 0;
+          uint64_t ty_size = 0;
+          if (ConstantInt* offset_ci = dyn_cast<ConstantInt>(offset)) {
+            offset_v = offset_ci->getValue().getSExtValue();
+            if (ty->isPointerTy()) {
+              ty = ty->getPointerElementType();
+            }
+            ty_size = AbsState::getModule()->getDataLayout().getTypeAllocSize(ty);
+            n += (ty_size * offset_v);
+          }
+          else {
+            //TODO: variable as offset?
+          }
+          
+          // Move to next level type
+          if (ty->isArrayTy()) {
+            ty = ty->getArrayElementType();
+          }
+          else if (ty->isStructTy()) {
+            assert(offset_v >= 0);
+            ty = ty->getStructElementType(offset_v);
+          }
+          else {
+            // Primitive type
+          }
+        }
+        errs() << "n: " << n << "\n";
+        
         auto srcAddr = BindAddr::makeBindAddr(srcObj, getFp());
         auto srcValsOpt = getConf()->getStore()->lookup(srcAddr);
         assert(srcValsOpt.hasValue());
         auto srcVals = srcValsOpt.getValue();
         assert(srcVals->template verify<LocationValue>());
-        //TODO:
+        
+        auto& srcValsSet = srcVals->getValueSet();
+        errs() << "src obj num: " << srcValsSet.size() << "\n";
+        
+        auto succ = getConf()->getSucc();
+        auto pred = getConf()->getPred();
+        auto destLocs = AbsD::makeMtD();
+        
+        for (auto& src : srcValsSet) {
+          assert(isa<LocationValue>(&*src));
+          auto lv = dyn_cast<LocationValue>(&*src);
+          auto addr = lv->getLocation();
+          auto addrs = AbsLoc::makeD(addr);
+          
+          if (n >= 0) {
+            for (int i = 0; i < n; i++) {
+              auto tempAddrs = AbsLoc::makeMtD();
+              for (auto& addr : addrs->getValueSet()) {
+                auto newAddrs = succ->lookup(addr).getValue();
+                tempAddrs->inplaceJoin(newAddrs);
+              }
+              addrs->inplaceClear();
+              addrs->inplaceJoin(tempAddrs);
+            }
+          }
+          else {
+            for (int i = 0; i > n; i--) {
+              auto tempAddrs = AbsLoc::makeMtD();
+              for (auto& addr : addrs->getValueSet()) {
+                auto newAddrs = pred->lookup(addr).getValue();
+                tempAddrs->inplaceJoin(newAddrs);
+              }
+              addrs->inplaceClear();
+              addrs->inplaceJoin(tempAddrs);
+            }
+          }
+  
+          for (auto& addr : addrs->getValueSet()) {
+            destLocs->inplaceAdd(LocationValue::makeLocationValue(addr));
+          }
+        }
+        
+        auto newStore = getConf()->getStore()->copy();
+        auto newMeasure = getConf()->getMeasure()->copy();
+        
+        auto destAddr = BindAddr::makeBindAddr(ptrInst, getFp());
+        //TODO: use inplaceStrongUpdate?
+        newStore->inplaceStrongUpdateWhen(destAddr, destLocs, [&]() {
+          auto mOpt = getConf()->getMeasure()->lookup(destAddr);
+          if (!mOpt.hasValue() || *mOpt.getValue() <= *one) {
+            newMeasure->inplaceStrongUpdate(destAddr, destLocs->getMeasure());
+            return true;
+          }
+          newMeasure->inplaceUpdate(destAddr, destLocs->getMeasure());
+          return false;
+        });
+  
+        auto newConf = AbsConf::makeAbsConf(newStore,
+                                            getConf()->getSucc(),
+                                            getConf()->getPred(),
+                                            newMeasure);
+        auto newState = AbsState::makeState(nextStmt, getFp(), newConf, getSp());
+        states->inplaceInsert(newState);
       }
       else if (Instruction::Add == inst->getOpcode() ||
                Instruction::Sub == inst->getOpcode() ||
