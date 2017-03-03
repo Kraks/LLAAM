@@ -1084,6 +1084,7 @@ namespace AbstractAAM {
         auto pred = getConf()->getPred();
         auto destLocs = AbsD::makeMtD();
         
+        //TODO: test
         for (auto& src : srcValsSet) {
           assert(isa<LocationValue>(&*src));
           auto lv = dyn_cast<LocationValue>(&*src);
@@ -1188,7 +1189,38 @@ namespace AbstractAAM {
         states->inplaceInsert(newState);
       }
       else if (isa<ICmpInst>(inst)) {
-      
+        ICmpInst* cmpInst = dyn_cast<ICmpInst>(inst);
+        auto lhs = evalAtom(cmpInst->getOperand(0), getFp(), getConf(), *getModule());
+        assert(lhs->template verify<AnyIntValue>());
+        auto rhs = evalAtom(cmpInst->getOperand(1), getFp(), getConf(), *getModule());
+        assert(rhs->template verify<AnyIntValue>());
+        
+        //TODO: do the real computation
+        auto t = IntValue::makeInt(ConstantInt::getTrue(C)->getValue());
+        auto f = IntValue::makeInt(ConstantInt::getFalse(C)->getValue());
+        auto result = AbsD::makeMtD();
+        result->inplaceAdd(t);
+        result->inplaceAdd(f);
+        
+        auto newStore = getConf()->getStore()->copy();
+        auto newMeasure = getConf()->getMeasure()->copy();
+        auto destAddr = BindAddr::makeBindAddr(cmpInst, getFp());
+        newStore->inplaceStrongUpdateWhen(destAddr, result, [&]() {
+          auto mOpt = getConf()->getMeasure()->lookup(destAddr);
+          if (!mOpt.hasValue() || *mOpt.getValue() <= *one) {
+            newMeasure->inplaceStrongUpdate(destAddr, result->getMeasure());
+            return true;
+          }
+          newMeasure->inplaceUpdate(destAddr, result->getMeasure());
+          return false;
+        });
+        
+        auto newConf = AbsConf::makeAbsConf(newStore,
+                                            getConf()->getSucc(),
+                                            getConf()->getPred(),
+                                            newMeasure);
+        auto newState = AbsState::makeState(nextStmt, getFp(), newConf, getSp());
+        states->inplaceInsert(newState);
       }
       else if (isa<BranchInst>(inst)) {
         
