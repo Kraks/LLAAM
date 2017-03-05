@@ -1268,6 +1268,7 @@ namespace AbstractAAM {
             else if (AnyIntValue* ai = dyn_cast<AnyIntValue>(&*v)) {
               states->inplaceInsert(thnState);
               states->inplaceInsert(elsState);
+              break;
             }
             else {
               assert(false && "Not an integer");
@@ -1407,7 +1408,6 @@ namespace AbstractAAM {
         auto vals = evalAtom(op0, getFp(), getConf(), *getModule());
         errs() << "\n"; vals->print(); errs() << "\n";
         assert(vals->template verify<AnyIntValue>());
-        
         
         auto destVals = AbsD::makeMtD();
         for (auto& v : vals->getValueSet()) {
