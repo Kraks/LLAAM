@@ -1203,12 +1203,51 @@ namespace AbstractAAM {
         auto rhs = evalAtom(cmpInst->getOperand(1), getFp(), getConf(), *getModule());
         assert(rhs->template verify<AnyIntValue>());
         
-        //TODO: do the real computation
         auto t = IntValue::makeInt(ConstantInt::getTrue(C)->getValue());
         auto f = IntValue::makeInt(ConstantInt::getFalse(C)->getValue());
         auto result = AbsD::makeMtD();
-        result->inplaceAdd(t);
-        result->inplaceAdd(f);
+        
+        CmpInst::Predicate pred = cmpInst->getPredicate();
+        for (auto& lv : lhs->getValueSet()) {
+          for (auto& rv : rhs->getValueSet()) {
+            if (isa<AnyIntValue>(&*lv) ||
+                isa<AnyIntValue>(&*rv)) {
+              result->inplaceAdd(t);
+              result->inplaceAdd(f);
+              break;
+            }
+            auto& lhs_v = dyn_cast<IntValue>(&*lv)->getValue();
+            auto& rhs_v = dyn_cast<IntValue>(&*rv)->getValue();
+            bool res;
+            switch (pred) {
+              case CmpInst::ICMP_EQ:
+                res = (lhs_v == rhs_v);
+                break;
+              case CmpInst::ICMP_NE:
+                res = (lhs_v != rhs_v);
+                break;
+              case CmpInst::ICMP_SGE:
+                res = lhs_v.sge(rhs_v);
+                break;
+              case CmpInst::ICMP_SGT:
+                res = lhs_v.sgt(rhs_v);
+                break;
+              case CmpInst::ICMP_SLE:
+                res = lhs_v.sle(rhs_v);
+                break;
+              case CmpInst::ICMP_SLT:
+                res = lhs_v.slt(rhs_v);
+                break;
+              default: assert(false && "Predicate not supported");
+            }
+            if (res) {
+              result->inplaceAdd(t);
+            }
+            else {
+              result->inplaceAdd(f);
+            }
+          }
+        }
         
         auto newStore = getConf()->getStore()->copy();
         auto newMeasure = getConf()->getMeasure()->copy();
