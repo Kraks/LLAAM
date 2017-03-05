@@ -10,6 +10,34 @@ namespace AbstractAAM {
   Module* AbsState::module = nullptr;
   unsigned long long AbsState::id = 0;
   
+  void run(AbsState::StatePtrType s) {
+    errs() << AbsState::getModule()->getSourceFileName() << "\n";
+    
+    AbsState::StateSetPtrType todo = StateSet::getMtSet();
+    AbsState::StateSetPtrType done = StateSet::getMtSet();
+    todo->inplaceInsert(s);
+    
+    while (todo->nonEmpty()) {
+      auto currentState = todo->inplacePop();
+      currentState->getConf()->getStore()->print();
+      
+      errs() << "\n";
+      currentState->print();
+      errs() << "\n";
+      
+      auto newStates = currentState->next();
+      
+      for (auto& s : newStates->getValueSet()) {
+        if (!done->contains(s)) {
+          todo->inplaceInsert(s);
+        }
+      }
+      
+      done->inplaceInsert(currentState);
+    }
+    
+  }
+  
   std::shared_ptr<AbsD> evalAtom(Value* val,
                                  std::shared_ptr<FrameAddr> fp,
                                  std::shared_ptr<AbsConf> conf,
@@ -127,18 +155,23 @@ namespace AbstractAAM {
     std::shared_ptr<AbsStore> store = std::make_shared<AbsStore>();
     auto initFp = ZeroCFAStackAddr::initFp(&M);
     Function* main = M.getFunction("main");
-    auto& mainArgs = main->getArgumentList();
-    //Put argc and argv into store
-    auto arg_it = mainArgs.begin();
-    auto argcBindAddr = BindAddr::makeBindAddr(&*arg_it, initFp);
-    auto argcValue = AbsD::makeD(AnyIntValue::getInstance());
-    store->inplaceStrongUpdate(argcBindAddr, argcValue);
     
-    arg_it++;
-    //TODO: argv
-    auto argvBindAddr = BindAddr::makeBindAddr(&*arg_it, initFp);
-    auto argvValue = LocationValue::makeLocationValue(ZeroCFAHeapAddr::make(&*arg_it, 0));
-    store->inplaceUpdate(argvBindAddr, AbsD::makeD(argvValue));
+    auto& mainArgs = main->getArgumentList();
+    if (mainArgs.size() > 0) {
+      //Put argc and argv into store
+      auto arg_it = mainArgs.begin();
+      auto argcBindAddr = BindAddr::makeBindAddr(&*arg_it, initFp);
+      auto argcValue = AbsD::makeD(AnyIntValue::getInstance());
+      store->inplaceStrongUpdate(argcBindAddr, argcValue);
+  
+      arg_it++;
+      //TODO: argv
+      /*
+      auto argvBindAddr = BindAddr::makeBindAddr(&*arg_it, initFp);
+      auto argvValue = LocationValue::makeLocationValue(ZeroCFAHeapAddr::make(&*arg_it, 0));
+      store->inplaceUpdate(argvBindAddr, AbsD::makeD(argvValue));
+      */
+    }
     
     auto& funcs = M.getFunctionList();
     for (auto& f : funcs) {
@@ -148,8 +181,9 @@ namespace AbstractAAM {
       std::shared_ptr<AbsD> d = AbsD::makeD(v);
       store->inplaceUpdate(b, d);
     }
-  
-    assert(store->size() == funcs.size() + 1);
+    
+    //TODO: if has argc && argv, update the assertion
+    assert(store->size() == funcs.size());
     
     auto& globs = M.getGlobalList();
     for (auto& g : globs) {
@@ -168,7 +202,8 @@ namespace AbstractAAM {
       }
     }
   
-    assert(store->size() == (funcs.size() + globs.size() + 1));
+    //TODO: if has argc && argv, update the assertion
+    assert(store->size() == (funcs.size() + globs.size()));
     return store;
   }
   
@@ -180,4 +215,68 @@ namespace AbstractAAM {
     std::shared_ptr<AbsConf> conf = AbsConf::makeAbsConf(store, succ, pred, measure);
     return conf;
   }
+  
+  /**
+   * Immediately touchable locations for an abstract value.
+   */
+  std::shared_ptr<AbsLoc> touchable(std::shared_ptr<AbstractValue> v,
+                                    std::shared_ptr<AbsConf> conf,
+                                    Module& M) {
+    auto result = AbsLoc::makeMtD();
+    
+    if (isa<AnyIntValue>(&*v)) { }
+    else if (isa<BotValue>(&*v)) { }
+    else if(isa<FuncValue>(&*v)) {
+      auto fv = dyn_cast<FuncValue>(&*v);
+      auto func = fv->getFunction();
+      //Global va
+    }
+    else if (isa<LocationValue>(&*v)) {
+      auto lv = dyn_cast<LocationValue>(&*v);
+      auto loc = lv->getLocation();
+      result->inplaceAdd(loc);
+      
+      auto predOpt = conf->getPred()->lookup(loc);
+      if (predOpt.hasValue()) {
+        for (auto& p : predOpt.getValue()->getValueSet()) {
+          result->inplaceAdd(p);
+        }
+      }
+      
+      auto succOpt = conf->getSucc()->lookup(loc);
+      if (succOpt.hasValue()) {
+        for (auto& s : succOpt.getValue()->getValueSet()) {
+          result->inplaceAdd(s);
+        }
+      }
+    }
+    else if (isa<Cont>(&*v)) {
+      
+    }
+    else {
+      
+    }
+  }
+  
+  std::shared_ptr<AbsLoc> touchable(std::shared_ptr<AbsD> d,
+                                    std::shared_ptr<AbsConf> conf,
+                                    Module& M) {
+    auto& vals = d->getValueSet();
+    auto result = AbsLoc::makeMtD();
+    for (auto& v : vals) {
+      auto ls = touchable(v, conf, M);
+      result->inplaceJoin(ls);
+    }
+    return result;
+  }
+  
+  /**
+   * Immediate touchable value for a state(inst, fp, conf, sp),
+   * includes live values at the entry of inst,
+   *          frame pointer,
+   *          arguments,
+   *          declared variables may used in future,
+   *          global variables
+   */
+  
 }

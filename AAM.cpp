@@ -343,14 +343,20 @@ namespace {
       
       d3->print();
     }
+    
+    void testAbstract(Module& M) {
+      std::shared_ptr<AbsState> state = AbsState::inject(M, "main");
+      AbstractAAM::run(state);
+    }
 
     bool runOnModule(Module& M) override {
       ConcreteState::setModule(&M);
       AbsState::setModule(&M);
       //test1(M);
       //test2(M);
-      test3(M);
+      //test3(M);
       //testConcrete(M);
+      testAbstract(M);
       return false;
     }
 

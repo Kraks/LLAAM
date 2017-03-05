@@ -105,6 +105,7 @@ namespace AbstractAAM {
     typedef std::shared_ptr<ZeroCFAHeapAddr> ZeroCFAHeapAddrPtrType;
     
     ZeroCFAHeapAddr(Value* inst, size_t offset) : val(inst), offset(offset), HeapAddr(KZeroCFAHeapAddr) {
+      assert(inst != nullptr);
       assert(isa<CallInst>(inst));
     }
     
@@ -459,6 +460,10 @@ namespace AbstractAAM {
       set.erase(state);
     }
     
+    std::unordered_set<EleType, PSetHasher<T>, PSetEqual<T>>& getValueSet() {
+      return set;
+    };
+    
     EleType inplacePop() {
       auto it = set.begin();
       auto head = *it;
@@ -478,6 +483,10 @@ namespace AbstractAAM {
     }
     
     size_t size() { return set.size(); }
+    
+    bool nonEmpty() {
+      return size() != 0;
+    }
   
   private:
     std::unordered_set<EleType, PSetHasher<T>, PSetEqual<T>> set;
@@ -568,7 +577,7 @@ namespace AbstractAAM {
           else {
             errs() << "Return: Void\n";
           }
-          states->inplaceInsert(this->copy());
+          //states->inplaceInsert(this->copy());
         }
         else {
           // Return to other functions
@@ -1123,7 +1132,6 @@ namespace AbstractAAM {
         auto newMeasure = getConf()->getMeasure()->copy();
         
         auto destAddr = BindAddr::makeBindAddr(ptrInst, getFp());
-        //TODO: use inplaceStrongUpdate?
         newStore->inplaceStrongUpdateWhen(destAddr, destLocs, [&]() {
           auto mOpt = getConf()->getMeasure()->lookup(destAddr);
           if (!mOpt.hasValue() || *mOpt.getValue() <= *one) {
@@ -1428,19 +1436,20 @@ namespace AbstractAAM {
         states->inplaceInsert(newState);
       }
       else if (isa<PHINode>(inst)) {
-        
+        //TODO:
       }
       else {
         assert(false && "Unsupported instruction");
       }
       
+      errs() << "next states size: " << states->size() << "\n";
       return states;
     }
     
     void print() {
-      errs() << "state[";
+      errs() << "state[" << myId << "][";
       getControl()->getInst()->print(errs());
-      errs() << "][" << myId << "]";
+      errs() << "]";
     }
     
     AbsState(CPtrType c, EPtrType e, SPtrType s, KPtrType k) :
@@ -1470,6 +1479,8 @@ namespace AbstractAAM {
       return initState;
     }
   };
+  
+  void run(AbsState::StatePtrType s);
 }
 
 #endif //LLVM_ABSTRACTAAM_H

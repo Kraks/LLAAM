@@ -137,7 +137,15 @@ namespace AAM {
       // TODO: using equality if hash values collided?
       auto ha = a->hashValue();
       auto hb = b->hashValue();
-      if (ha == hb) { assert(false && "Hash values collided"); }
+      if (ha == hb) {
+        assert((*a == *b) && "Hash values collided");
+        /*
+        a->print();
+        errs() << "\n";
+        b->print();
+        errs() << "\n"
+         */
+      }
       return ha < hb;
     }
   };
