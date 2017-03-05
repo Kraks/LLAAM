@@ -1255,6 +1255,7 @@ namespace AbstractAAM {
           Value* cnd = branchInst->getOperand(0);
           auto cndVals = evalAtom(cnd, getFp(), getConf(), *getModule());
           assert(cndVals->template verify<AnyIntValue>());
+          
           for (auto& v : cndVals->getValueSet()) {
             if (IntValue* i = dyn_cast<IntValue>(&*v)) {
               if (i->getValue() == ConstantInt::getFalse(C)->getValue()) {
@@ -1365,7 +1366,9 @@ namespace AbstractAAM {
             destVals->inplaceAdd(newV);
           }
           else if (AnyIntValue* ai = dyn_cast<AnyIntValue>(&*v)) {
-            destVals->inplaceAdd(AnyIntValue::getInstance());
+            destVals = AbsD::makeD(AnyIntValue::getInstance());
+            break;
+            //destVals->inplaceAdd(AnyIntValue::getInstance());
           }
           else {
             assert(false && "Not an integer");
@@ -1393,13 +1396,19 @@ namespace AbstractAAM {
         states->inplaceInsert(newState);
       }
       else if (isa<TruncInst>(inst)) {
-        SExtInst* sExtInst = dyn_cast<SExtInst>(inst);
-        Value* op0 = sExtInst->getOperand(0);
+        TruncInst* truncInst = dyn_cast<TruncInst>(inst);
+        Value* op0 = truncInst->getOperand(0);
   
-        Type* destType = sExtInst->getDestTy();
+        Type* destType = truncInst->getDestTy();
+        errs() << "dest type: ";
+        destType->print(errs());
+        errs() << "\n";
+        
         auto vals = evalAtom(op0, getFp(), getConf(), *getModule());
+        errs() << "\n"; vals->print(); errs() << "\n";
         assert(vals->template verify<AnyIntValue>());
-  
+        
+        
         auto destVals = AbsD::makeMtD();
         for (auto& v : vals->getValueSet()) {
           if (IntValue* iv = dyn_cast<IntValue>(&*v)) {
@@ -1408,14 +1417,16 @@ namespace AbstractAAM {
             destVals->inplaceAdd(newV);
           }
           else if (AnyIntValue* ai = dyn_cast<AnyIntValue>(&*v)) {
-            destVals->inplaceAdd(AnyIntValue::getInstance());
+            destVals = AbsD::makeD(AnyIntValue::getInstance());
+            break;
+            //destVals->inplaceAdd(AnyIntValue::getInstance());
           }
           else {
             assert(false && "Not an integer");
           }
         }
   
-        auto destAddr = BindAddr::makeBindAddr(sExtInst, getFp());
+        auto destAddr = BindAddr::makeBindAddr(truncInst, getFp());
         auto newStore = getConf()->getStore()->copy();
         auto newMeasure = getConf()->getMeasure()->copy();
         newStore->inplaceStrongUpdateWhen(destAddr, destVals, [&]() {
