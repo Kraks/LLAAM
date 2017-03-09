@@ -1487,7 +1487,30 @@ namespace AbstractAAM {
         states->inplaceInsert(newState);
       }
       else if (isa<PHINode>(inst)) {
-        //TODO:
+        PHINode* phiNode = dyn_cast<PHINode>(inst);
+        Instruction* prev = getControl()->getPrev();
+        assert(prev != nullptr);
+        BasicBlock* fromBlock = prev->getParent();
+        Value* incomingValue = phiNode->getIncomingValueForBlock(fromBlock);
+        
+        auto val = evalAtom(incomingValue, getFp(), getConf(), *getModule());
+        auto destAddr = BindAddr::makeBindAddr(phiNode, getFp());
+        auto newStore = getConf()->getStore()->copy();
+        auto newMeasure = getConf()->getMeasure()->copy();
+        
+        newStore->inplaceStrongUpdateWhen(destAddr, val, [&]() {
+          auto mOpt = getConf()->getMeasure()->lookup(destAddr);
+          if (!mOpt.hasValue() || *mOpt.getValue() <= *one) {
+            newMeasure->inplaceStrongUpdate(destAddr, val->getMeasure());
+            return true;
+          }
+          newMeasure->inplaceUpdate(destAddr, val->getMeasure());
+          return false;
+        });
+        
+        auto newConf = AbsConf::makeAbsConf(newStore, getConf()->getSucc(), getConf()->getPred(), newMeasure);
+        auto newState = AbsState::makeState(nextStmt, getFp(), newConf, getSp());
+        states->inplaceInsert(newState);
       }
       else {
         assert(false && "Unsupported instruction");
