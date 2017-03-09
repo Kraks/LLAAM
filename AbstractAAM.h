@@ -6,7 +6,9 @@
 #ifndef LLVM_ABSTRACTAAM_H
 #define LLVM_ABSTRACTAAM_H
 
-// TODO: addrsOf
+//TODO: malloc a set of sizes
+//TODO: integer abstract domain, currently using set
+//TODO: strong update?
 
 namespace AbstractAAM {
   using namespace AAM;
@@ -673,7 +675,6 @@ namespace AbstractAAM {
           int64_t nMalloc = -1;
           
           if (ConstantInt* mallocSizeCI = dyn_cast<ConstantInt>(mallocSize)) {
-            //TODO: Abstract to be a function
             // Malloc a size of constant int
             nMalloc = mallocSizeCI->getSExtValue();
             unknownSize = false;
@@ -1210,8 +1211,8 @@ namespace AbstractAAM {
         CmpInst::Predicate pred = cmpInst->getPredicate();
         for (auto& lv : lhs->getValueSet()) {
           for (auto& rv : rhs->getValueSet()) {
-            if (isa<AnyIntValue>(&*lv) ||
-                isa<AnyIntValue>(&*rv)) {
+            if ((isa<AnyIntValue>(&*lv) && !isa<IntValue>(&*lv)) ||
+                (isa<AnyIntValue>(&*rv) && !isa<IntValue>(&*rv))) {
               result->inplaceAdd(t);
               result->inplaceAdd(f);
               break;
