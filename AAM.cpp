@@ -1,18 +1,13 @@
 // Created by WeiGuannan on 14/01/2017.
 //
 
-#include "llvm/Pass.h"
-#include "llvm/IR/Module.h"
-#include "llvm/IR/Function.h"
-#include "llvm/IR/Instruction.h"
-#include "llvm/IR/Instructions.h"
-#include "llvm/IR/InstIterator.h"
-#include "llvm/IR/SymbolTableListTraits.h"
-#include "llvm/Support/raw_ostream.h"
 
+#include "AAM.h"
 #include "ConcreteAAM.h"
 #include "AbstractAAM.h"
 #include "Utils.h"
+
+#include "LiveValues.h"
 
 using namespace std;
 using namespace llvm;
@@ -348,21 +343,35 @@ namespace {
       std::shared_ptr<AbsState> state = AbsState::inject(M, "main");
       AbstractAAM::run(state);
     }
+    
+    void getAnalysisUsage(AnalysisUsage& AU) const {
+      AU.addRequired<DominatorTreeWrapperPass>();
+      AU.addRequired<LoopInfoWrapperPass>();
+      AU.setPreservesAll();
+    }
 
     bool runOnModule(Module& M) override {
+      Function* main = M.getFunction("main");
       ConcreteState::setModule(&M);
       AbsState::setModule(&M);
       //test1(M);
       //test2(M);
       //test3(M);
       //testConcrete(M);
-      testAbstract(M);
+      //testAbstract(M);
+      
+      LiveValues* lv = new LiveValues(this);
+      lv->compute(*main);
+      
       return false;
     }
 
   };
 
   char AAMPass::ID = 0;
-  static RegisterPass<AAMPass> X("aam", "AAM Pass", false/*Only looks at CFG*/, false/*Analysis Pass*/);
+  static RegisterPass<AAMPass> X("aam",
+                                 "AAM Pass",
+                                 false/*Only looks at CFG*/,
+                                 false/*Analysis Pass*/);
 }
 

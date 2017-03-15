@@ -158,6 +158,7 @@ namespace AbstractAAM {
     
     auto& mainArgs = main->getArgumentList();
     if (mainArgs.size() > 0) {
+      assert(mainArgs.size() == 2);
       //Put argc and argv into store
       auto arg_it = mainArgs.begin();
       auto argcBindAddr = BindAddr::makeBindAddr(&*arg_it, initFp);

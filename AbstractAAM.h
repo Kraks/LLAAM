@@ -673,7 +673,7 @@ namespace AbstractAAM {
           auto botD = AbsD::makeD(bot);
           bool unknownSize = false;
           int64_t nMalloc = -1;
-          
+  
           if (ConstantInt* mallocSizeCI = dyn_cast<ConstantInt>(mallocSize)) {
             // Malloc a size of constant int
             nMalloc = mallocSizeCI->getSExtValue();
