@@ -14,71 +14,88 @@ public:
   typedef std::set<Value*> ValueSet;
   typedef std::map<Value*, ValueSet> Liveness;
   
-  void compute(Function& F) {
+  struct Result {
     Liveness IN;
     Liveness OUT;
-    
-    errs() << "initializing\n";
-    
+  };
+  
+  std::map<Function*, Result> results;
+  
+  void printResult(Function& F, Result& res) {
     auto& BBs = F.getBasicBlockList();
-    for (auto& block : BBs) {
-      for (auto& inst : block.getInstList()) {
-        errs() << "init: ";
-        inst.print(errs());
-        errs() << "\n";
-        
-        IN[&inst] = std::set<Value*>();
-        OUT[&inst] = std::set<Value*>();
-      }
-    }
-    
-    for (auto& block : BBs) {
-      for (auto& inst : block.getInstList()) {
-        errs() << "processing: ";
-        inst.print(errs());
-        errs() << "\n";
-        
-        for (auto* user : inst.users()) {
-          if (Instruction* userInst = dyn_cast<Instruction>(user)) {
-            live(&inst, userInst, &IN, &OUT);
-          }
-          else {
-            assert(false && "not an instruction");
-          }
-        }
-      }
-    }
     
     errs() << "\n";
     for (auto& block : BBs) {
       for (auto& inst : block.getInstList()) {
-        assert(IN.find(&inst) != IN.end());
+        assert(res.IN.find(&inst) != res.IN.end());
         errs() << "IN[";
         inst.print(errs());
         errs() << "]\n";
-        
-        for (Value* v : IN.find(&inst)->second) {
+      
+        for (Value* v : res.IN.find(&inst)->second) {
           errs() << "  ";
           v->print(errs());
           errs() << "\n";
         }
       }
     }
-    
+  
     errs() << "\n";
     for (auto& block : BBs) {
       for (auto& inst : block.getInstList()) {
-        assert(OUT.find(&inst) != IN.end());
+        assert(res.OUT.find(&inst) != res.OUT.end());
         errs() << "OUT[";
         inst.print(errs());
         errs() << "]\n";
       
-        for (Value* v : OUT.find(&inst)->second) {
+        for (Value* v : res.OUT.find(&inst)->second) {
           errs() << "  ";
           v->print(errs());
           errs() << "\n";
         }
       }
+    }
+    
+  }
+  
+  Result& compute(Function& F) {
+    if (results.find(&F) == results.end()) {
+      Result res;
+      errs() << "initializing\n";
+  
+      auto& BBs = F.getBasicBlockList();
+      for (auto& block : BBs) {
+        for (auto& inst : block.getInstList()) {
+          errs() << "init: ";
+          inst.print(errs());
+          errs() << "\n";
+      
+          res.IN[&inst] = std::set<Value*>();
+          res.OUT[&inst] = std::set<Value*>();
+        }
+      }
+  
+      for (auto& block : BBs) {
+        for (auto& inst : block.getInstList()) {
+          errs() << "processing: ";
+          inst.print(errs());
+          errs() << "\n";
+      
+          for (auto* user : inst.users()) {
+            if (Instruction* userInst = dyn_cast<Instruction>(user)) {
+              live(&inst, userInst, &res.IN, &res.OUT);
+            }
+            else {
+              assert(false && "not an instruction");
+            }
+          }
+        }
+      }
+      results[&F] = res;
+      return results[&F];
+    }
+    else {
+      return results[&F];
     }
   }
   

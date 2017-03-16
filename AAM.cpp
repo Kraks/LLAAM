@@ -360,8 +360,9 @@ namespace {
       //testConcrete(M);
       //testAbstract(M);
       
-      LiveValues* lv = new LiveValues(this);
-      lv->compute(*main);
+      LiveValues lv(this);
+      LiveValues::Result& r = lv.compute(*main);
+      lv.printResult(*main, r);
       
       return false;
     }
