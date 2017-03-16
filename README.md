@@ -6,7 +6,7 @@ LLAAM is still early work in progress. For now, it supports `ReturnInst`, `CallI
 
 How to build
 ===
-LLAAM works as a pass in LLVM, not it has been tested on LLVM 3.9.1.
+LLAAM works as a pass in LLVM, it has been tested on LLVM 3.9.1.
 
 To build it:
 
