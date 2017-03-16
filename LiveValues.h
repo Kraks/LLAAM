@@ -95,6 +95,7 @@ public:
       return results[&F];
     }
     else {
+      errs() << "Already has result for function " << F.getName() << "\n";
       return results[&F];
     }
   }
