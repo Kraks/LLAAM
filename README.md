@@ -12,7 +12,7 @@ To build it:
 
 * clone the project to `src_of_llvm/lib/Transforms/AAM`
 * modify `src_of_llvm/lib/Transforms/CMakeLists.txt` file, add `add_subdirectory(AAM)` to the end of file
-* rebuild the LLVM, `LLVMAAM.dylib` should appeared in `build_of_llvm/lib/` directroy
+* rebuild the LLVM, after that `LLVMAAM.dylib` should appeared in `build_of_llvm/lib/` directroy
 
 Then you can use command line tool `opt` to invoke it:
 
